@@ -254,6 +254,11 @@ def predict():
 
     return jsonify({"riskScore": risk, "status": status})
 
+
+@app.route("/")
+def caretaker_dashboard():
+    return send_from_directory("static", "caretaker.html")
+
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
