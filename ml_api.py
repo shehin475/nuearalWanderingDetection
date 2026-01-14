@@ -178,6 +178,10 @@ def send_push(token, title, body):
         }
     )
 
+def should_send_alert(prev_level, new_level):
+    return prev_level != "alert" and new_level == "alert"
+
+
 # ---------------- API ----------------
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -187,8 +191,9 @@ def predict():
     speed = float(d["speed"])
     distance = float(d["distance"])
     time_outside = int(d["time_outside"])
-    lat = float(d["latitude"])
-    lon = float(d["longitude"])
+    lat = float(d.get("latitude", 0))
+    lon = float(d.get("longitude", 0))
+
 
     battery = int(d.get("battery", 100))
     is_raining = bool(d.get("isRaining", False))
