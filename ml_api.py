@@ -8,6 +8,12 @@ from datetime import datetime
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from dotenv import load_dotenv
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 
 load_dotenv()
 
@@ -275,6 +281,11 @@ def predict():
             "🚨 Wandering Alert",
             f"High risk detected ({risk})"
         )
+
+    app.logger.info("Prediction completed")
+    app.logger.info(
+    f"Prediction OK | patient={patient_id} | level={level} | risk={risk}"
+    )
 
     # ---------- FINAL RESPONSE ----------
     return jsonify({
