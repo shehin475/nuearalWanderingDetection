@@ -200,15 +200,31 @@ def predict():
     light = d.get("lightLevel", "normal")
     feedback = d.get("feedback")
 
-    patient = requests.get(f"{FIREBASE_DB_URL}/patients/{patient_id}.json").json()
+        # ---------- SAFE FIREBASE FETCH ----------
+    resp = requests.get(
+        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+        timeout=5
+    )
+
+    try:
+        patient = resp.json() if resp.status_code == 200 else None
+    except Exception:
+        patient = None
+
     if not patient:
-        return jsonify({"error": "Patient not found"}), 404
+        return jsonify({
+            "riskScore": 0,
+            "riskLevel": "normal",
+            "triggerAlert": False
+        })
 
     learning = patient.get("learning", {})
     zone_map = patient.get("zoneHeatmap", {})
     history = patient.get("riskHistory", {})
 
-    weights = learning.get("weights", {"distance": 0.5, "time": 0.3, "speed": 0.2})
+    weights = learning.get(
+        "weights", {"distance": 0.5, "time": 0.3, "speed": 0.2}
+    )
     avg_speed = learning.get("avgSpeed", speed)
     avg_distance = learning.get("avgDistance", distance)
     samples = learning.get("samples", 0)
@@ -229,12 +245,14 @@ def predict():
 
     history = update_risk_history(history, risk)
 
-    status = "normal"
+    # ---------- STANDARDIZED RISK LEVEL ----------
+    level = "normal"
     if risk > 0.8:
-        status = "wandering"
+        level = "alert"
     elif risk > 0.6:
-        status = "warning"
+        level = "warning"
 
+    # ---------- SAVE LEARNING ----------
     requests.patch(
         f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
         json={
@@ -250,14 +268,23 @@ def predict():
         }
     )
 
-    if status == "wandering" and "fcmToken" in patient:
+    # ---------- OPTIONAL FCM ----------
+    if level == "alert" and "fcmToken" in patient:
         send_push(
             patient["fcmToken"],
             "🚨 Wandering Alert",
             f"High risk detected ({risk})"
         )
 
-    return jsonify({"riskScore": risk, "status": status})
+    # ---------- FINAL RESPONSE ----------
+    return jsonify({
+        "riskScore": round(risk, 1),
+        "riskLevel": level,
+        "triggerAlert": should_send_alert(
+            d.get("prevRiskLevel"), level
+        )
+    })
+
 
 
 @app.route("/")
