@@ -1056,6 +1056,51 @@
           </div>
         </div>
 
+        <!-- Add/Edit Patient Form -->
+        <div class="card">
+          <span class="card-label">Patient Management</span>
+          <h3><span class="medical-icon"></span> Add / Update Patient</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Patient ID</label>
+              <input id="pid" placeholder="e.g. patient_001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Patient Name</label>
+              <input id="pname" placeholder="Full name">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Age</label>
+              <input id="page" placeholder="Age" type="number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Condition</label>
+              <input id="pcondition" placeholder="Medical condition">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Safe Radius (meters)</label>
+              <input id="pradius" placeholder="e.g. 100" type="number">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select id="pstatus">
+                <option value="normal">Normal</option>
+                <option value="warning">Warning</option>
+                <option value="alert">Alert</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: flex; gap: 15px; margin-top: 20px;">
+            <button class="btn-primary" onclick="savePatient()">💾 Save Patient</button>
+            <button class="btn-warning" onclick="clearForm()">🗑️ Clear Form</button>
+            <button class="btn-success" onclick="loadPatientsList()">🔄 Refresh List</button>
+          </div>
+        </div>
+
         <!-- Filter Section -->
         <div class="filter-section">
           <div class="filter-header">
@@ -1130,50 +1175,6 @@
           <div id="activeFilters" class="filter-tags"></div>
         </div>
 
-        <!-- Add/Edit Patient Form -->
-        <div class="card">
-          <span class="card-label">Patient Management</span>
-          <h3><span class="medical-icon"></span> Add / Update Patient</h3>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Patient ID</label>
-              <input id="pid" placeholder="e.g. patient_001">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Patient Name</label>
-              <input id="pname" placeholder="Full name">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Age</label>
-              <input id="page" placeholder="Age" type="number">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Condition</label>
-              <input id="pcondition" placeholder="Medical condition">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Safe Radius (meters)</label>
-              <input id="pradius" placeholder="e.g. 100" type="number">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Status</label>
-              <select id="pstatus">
-                <option value="normal">Normal</option>
-                <option value="warning">Warning</option>
-                <option value="alert">Alert</option>
-              </select>
-            </div>
-          </div>
-          <div style="display: flex; gap: 15px; margin-top: 20px;">
-            <button class="btn-primary" onclick="savePatient()">💾 Save Patient</button>
-            <button class="btn-warning" onclick="clearForm()">🗑️ Clear Form</button>
-            <button class="btn-success" onclick="loadPatientsList()">🔄 Refresh List</button>
-          </div>
-        </div>
 
         <!-- Patient List -->
         <div class="card">
@@ -1747,6 +1748,18 @@
               🗑️ Delete
             </button>
           </div>
+          <div class="patient-actions" style="margin-top:10px;">
+  <button class="btn-success"
+          onclick="submitFeedback('${patient.id}', 'correct_alert')">
+    ✅ Alert Correct
+  </button>
+
+  <button class="btn-warning"
+          onclick="submitFeedback('${patient.id}', 'false_alarm')">
+    ❌ False Alarm
+  </button>
+</div>
+
         `;
 
         grid.appendChild(card);
@@ -1797,6 +1810,21 @@
         `Are you sure you want to delete patient "${patientName}" (${patientId})? This action cannot be undone.`;
       document.getElementById("deleteModal").classList.add("active");
     }
+    
+function submitFeedback(patientId, feedbackType) {
+  const feedbackId = "fb_" + Date.now();
+
+  // 1️⃣ Store raw feedback (for audit / future learning)
+  db.ref(`feedback/${patientId}/${feedbackId}`).set({
+    type: feedbackType,
+    timestamp: Date.now()
+  });
+
+  // 2️⃣ Store last feedback on patient (ML reads this)
+  db.ref(`patients/${patientId}/lastFeedback`).set(feedbackType);
+
+  alert("Feedback recorded ✅");
+}
 
     function deletePatient() {
       if (!currentPatientToDelete) return;
