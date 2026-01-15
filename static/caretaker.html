@@ -1,92 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Caretaker Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<title>Caretaker Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase v8 -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<!-- Firebase v8 -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-      padding: 20px;
-    }
+<!-- Leaflet Map -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    h1 {
-      text-align: center;
-      color: #38bdf8;
-    }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 20px;
+}
 
-    .card {
-      background: #020617;
-      padding: 16px;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      box-shadow: 0 0 10px rgba(56,189,248,0.15);
-    }
+h1 { color: #38bdf8; text-align:center; }
 
-    .patient-card {
-      border-left: 6px solid #22c55e;
-    }
+.card {
+  background:#020617;
+  padding:16px;
+  border-radius:12px;
+  margin-bottom:16px;
+  border-left:6px solid #22c55e;
+}
 
-    .warning {
-      border-left-color: #facc15;
-    }
+.alert { border-left-color:#ef4444; }
+.warning { border-left-color:#facc15; }
 
-    .alert {
-      border-left-color: #ef4444;
-    }
+button {
+  padding:8px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
 
-    .risk-bar {
-      height: 10px;
-      border-radius: 6px;
-      background: #1e293b;
-      overflow: hidden;
-      margin: 6px 0 10px;
-    }
+.btn-add { background:#38bdf8; }
+.btn-edit { background:#facc15; }
+.btn-del { background:#ef4444; }
+.btn-save { background:#22c55e; }
 
-    .risk-fill {
-      height: 100%;
-    }
+input {
+  width:100%;
+  padding:8px;
+  margin-bottom:8px;
+  border-radius:6px;
+  border:none;
+}
 
-    .risk-normal { background: #22c55e; }
-    .risk-warning { background: #facc15; }
-    .risk-alert { background: #ef4444; }
-
-    .badge {
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    .badge.normal { background: #22c55e; }
-    .badge.warning { background: #facc15; color:#020617; }
-    .badge.alert { background: #ef4444; }
-
-    .muted {
-      color: #94a3b8;
-      font-size: 13px;
-    }
-
-    button {
-      padding: 8px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      margin-top: 8px;
-      width: 100%;
-    }
-
-    .btn-ok { background: #22c55e; }
-    .btn-bad { background: #ef4444; }
-
-    .alert-panel {
+#map {
+  height:300px;
+  border-radius:12px;
+  margin-top:10px;
+}
+.hidden { display:none; }
+.alert-panel {
   position: fixed;
   top: 80px;
   right: 20px;
@@ -132,172 +109,253 @@
   font-size: 12px;
 }
 
-  </style>
+.btn-ok { background: #22c55e; }
+.btn-bad { background: #ef4444; }
+
+</style>
 </head>
 
 <body>
+
 <h1>🧑‍⚕️ Caretaker Dashboard</h1>
+
+<button class="btn-add" onclick="openForm()">➕ Add Patient</button>
+<br><br>
+
 <div id="patients"></div>
 
-<!-- 🚨 ALERT PANEL -->
+<!-- PATIENT FORM -->
+<div id="formBox" class="card hidden">
+  <h3 id="formTitle">Add Patient</h3>
+
+  <input id="pid" placeholder="Patient ID (unique)" />
+  <input id="pname" placeholder="Name" />
+  <input id="page" placeholder="Age" />
+  <input id="pcondition" placeholder="Condition" />
+
+  <button class="btn-save" onclick="savePatient()">💾 Save</button>
+  <button onclick="closeForm()">Cancel</button>
+</div>
+
+<!-- SAFE CENTER MAP -->
+<div id="mapBox" class="card hidden">
+  <h3>📍 Set Safe Center (Click on Map)</h3>
+  <div id="map"></div>
+  <button class="btn-save" onclick="saveSafeCenter()">Save Safe Center</button>
+  <button onclick="closeMap()">Cancel</button>
+</div>
+
+<!-- 🚨 ALERT BAR -->
 <div id="alertPanel" class="alert-panel hidden">
-  <h2>🚨 Active Alerts</h2>
+  <h3>🚨 Active Alerts</h3>
   <div id="alertList"></div>
 </div>
 
 
 <script>
-  // 🔴 KEEP YOUR EXISTING FIREBASE CONFIG HERE
-  const firebaseConfig = {
-      apiKey: "AIzaSyAoR0vhcrxB3nw39ncqLJfmMET7ufokn1A",
-      authDomain: "ai-wandering-system.firebaseapp.com",
-      databaseURL: "https://ai-wandering-system-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "ai-wandering-system",
-      storageBucket: "ai-wandering-system.firebasestorage.app",
-      messagingSenderId: "443603981661",
-      appId: "1:443603981661:web:ce8ce7697cfbed2327c4b4",
-      measurementId: "G-2Q49NF2RTB"
-    };
+/* ---------------- FIREBASE ---------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyAoR0vhcrxB3nw39ncqLJfmMET7ufokn1A",
+  authDomain: "ai-wandering-system.firebaseapp.com",
+  databaseURL: "https://ai-wandering-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "ai-wandering-system",
+  storageBucket: "ai-wandering-system.firebasestorage.app",
+  messagingSenderId: "443603981661",
+  appId: "1:443603981661:web:ce8ce7697cfbed2327c4b4"
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
+/* ---------------- PATIENT LIST ---------------- */
+db.ref("patients").on("value", snap => {
+  const container = document.getElementById("patients");
+  container.innerHTML = "";
 
-  const alertPanel = document.getElementById("alertPanel");
-  const alertList = document.getElementById("alertList");
-  const shownAlerts = new Set();
+  snap.forEach(child => {
+    const p = child.val();
+    const id = child.key;
 
-  // 🔔 LISTEN FOR WANDERING ALERTS
-  db.ref("alerts").on("child_added", snap => {
-    const alertData = snap.val();
-    if (!alertData) return;
+    const card = document.createElement("div");
+    card.className = "card";
 
-    const alertId = snap.key;
-    if (shownAlerts.has(alertId)) return;
-
-    shownAlerts.add(alertId);
-
-    if (alertData.riskLevel !== "alert") return;
-
-    showAlert(alertId, alertData);
-  });
-
-  function showAlert(alertId, alertData) {
-    alertPanel.classList.remove("hidden");
-
-    const div = document.createElement("div");
-    div.className = "alert-item";
-    div.id = `alert-${alertId}`;
-
-    div.innerHTML = `
-      <h4>Patient: ${alertData.patientId}</h4>
-      <p>Risk Score: ${(alertData.riskScore * 100).toFixed(1)}%</p>
-      <p class="muted">Time: ${new Date(alertData.timestamp).toLocaleTimeString()}</p>
-
-      <div class="alert-actions">
-        <button class="btn-ok"
-          onclick="sendFeedback('${alertData.patientId}', '${alertId}', 'correct_alert')">
-          ✅ Correct
-        </button>
-        <button class="btn-bad"
-          onclick="sendFeedback('${alertData.patientId}', '${alertId}', 'false_alarm')">
-          ❌ False
-        </button>
-      </div>
+    card.innerHTML = `
+      <h3>${p.name || "Unnamed"} (${id})</h3>
+      <p>Age: ${p.age || "N/A"}</p>
+      <p>Condition: ${p.condition || "-"}</p>
+      <p>Risk: ${(p.riskScore || 0) * 100}%</p>
+      <button class="btn-edit" onclick="editPatient('${id}')">✏️ Edit</button>
+      <button class="btn-del" onclick="deletePatient('${id}')">🗑 Delete</button>
+      <button class="btn-add" onclick="openMap('${id}')">📍 Set Safe Center</button>
     `;
 
-    alertList.prepend(div);
-  }
-
-  function getRiskLevel(p) {
-    if (p.riskLevel === "alert" || p.riskLevel === 1) return "alert";
-    if (p.riskLevel === "warning") return "warning";
-
-    const score = p.riskScore || 0;
-    if (score >= 0.8) return "alert";
-    if (score >= 0.6) return "warning";
-    return "normal";
-  }
-
-  function timeAgo(ts) {
-    if (!ts) return "Unknown";
-    const diff = Math.floor((Date.now() - ts) / 1000);
-    if (diff < 60) return diff + " sec ago";
-    if (diff < 3600) return Math.floor(diff / 60) + " min ago";
-    return Math.floor(diff / 3600) + " hrs ago";
-  }
-
-  function sendFeedback(patientId, alertId, type) {
-  db.ref(`feedback/${patientId}/${alertId}`).set({
-    type: type,
-    timestamp: Date.now()
+    container.appendChild(card);
   });
+});
 
-  // Also store lastFeedback for ML learning
-  db.ref(`patients/${patientId}/lastFeedback`).set(type);
+/* ---------------- ADD / UPDATE PATIENT ---------------- */
+let editingId = null;
 
-  // Remove alert from panel
-  const el = document.getElementById(`alert-${alertId}`);
-  if (el) el.remove();
+function openForm(id=null) {
+  editingId = id;
+  document.getElementById("formBox").classList.remove("hidden");
 
-  // Hide panel if empty
-  if (!alertList.children.length) {
-    alertPanel.classList.add("hidden");
+  if (!id) {
+    document.getElementById("formTitle").innerText = "Add Patient";
+    document.getElementById("pid").disabled = false;
+    clearForm();
+    return;
   }
+
+  db.ref(`patients/${id}`).once("value", snap => {
+    const p = snap.val();
+    document.getElementById("formTitle").innerText = "Edit Patient";
+    document.getElementById("pid").value = id;
+    document.getElementById("pid").disabled = true;
+    document.getElementById("pname").value = p.name || "";
+    document.getElementById("page").value = p.age || "";
+    document.getElementById("pcondition").value = p.condition || "";
+  });
 }
 
+function savePatient() {
+  const id = document.getElementById("pid").value.trim();
+  if (!id) return alert("Patient ID required");
 
-  db.ref("patients").on("value", snapshot => {
-    const container = document.getElementById("patients");
-    container.innerHTML = "";
+  const data = {
+    name: pname.value,
+    age: page.value,
+    condition: pcondition.value,
+    lastUpdated: Date.now()
+  };
 
-    if (!snapshot.exists()) {
-      container.innerHTML = "<p>No patients found</p>";
+  db.ref(`patients/${id}`).update(data);
+  closeForm();
+}
+
+function editPatient(id) { openForm(id); }
+
+function deletePatient(id) {
+  if (!confirm("Delete patient permanently?")) return;
+  db.ref(`patients/${id}`).remove();
+}
+
+function closeForm() {
+  document.getElementById("formBox").classList.add("hidden");
+  clearForm();
+}
+
+function clearForm() {
+  pid.value = pname.value = page.value = pcondition.value = "";
+}
+
+/* ---------------- SAFE CENTER MAP ---------------- */
+let map, marker, selectedLatLng, mapPatientId;
+
+function openMap(id) {
+  mapPatientId = id;
+  document.getElementById("mapBox").classList.remove("hidden");
+
+  setTimeout(() => {
+    map = L.map("map").setView([11.946, 75.351], 16);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+    map.on("click", e => {
+      selectedLatLng = e.latlng;
+      if (marker) map.removeLayer(marker);
+      marker = L.marker(e.latlng).addTo(map);
+    });
+  }, 200);
+}
+
+function saveSafeCenter() {
+  if (!selectedLatLng) return alert("Click on map to select location");
+
+  db.ref(`patients/${mapPatientId}/safeCenter`).set({
+    lat: selectedLatLng.lat,
+    lon: selectedLatLng.lng
+  });
+
+  closeMap();
+}
+
+function closeMap() {
+  document.getElementById("mapBox").classList.add("hidden");
+  if (map) {
+    map.remove();
+    map = null;
+    marker = null;
+    selectedLatLng = null;
+  }
+}
+</script>
+<script>
+const alertPanel = document.getElementById("alertPanel");
+const alertList = document.getElementById("alertList");
+
+firebase.database()
+  .ref("alerts")
+  .orderByChild("active")
+  .equalTo(true)
+  .on("value", snap => {
+
+    alertList.innerHTML = "";
+
+    if (!snap.exists()) {
+      alertPanel.classList.add("hidden");
       return;
     }
 
-    const patients = [];
-    snapshot.forEach(child => {
-      patients.push({ id: child.key, ...child.val() });
-    });
+    alertPanel.classList.remove("hidden");
 
-    patients.sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+    snap.forEach(child => {
+      const alertId = child.key;
+      const a = child.val();
 
-    patients.forEach(p => {
-      const riskScore = p.riskScore || 0;
-      const level = getRiskLevel(p);
-      const distance = p.distance ?? "N/A";
-      const loc = p.currentLocation || {};
+      const div = document.createElement("div");
+      div.className = "alert-item";
 
-      const card = document.createElement("div");
-      card.className = `card patient-card ${level}`;
-
-      card.innerHTML = `
-        <h3>${p.name || "Unnamed"} (${p.id})</h3>
-
-        <span class="badge ${level}">${level.toUpperCase()}</span>
-
-        <p><b>Risk Score:</b> ${(riskScore * 100).toFixed(1)}%</p>
-
-        <div class="risk-bar">
-          <div class="risk-fill risk-${level}"
-               style="width:${Math.min(riskScore, 1) * 100}%"></div>
-        </div>
-
-        <p><b>Distance:</b> ${distance} m</p>
-
-        <p class="muted">Last Update: ${timeAgo(p.lastUpdated)}</p>
-
+      div.innerHTML = `
+        <h4>Patient: ${a.patientId}</h4>
+        <p>Risk: ${(a.riskScore * 100).toFixed(1)}%</p>
         <p class="muted">
-          Location:
-          ${loc.lat ? `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}` : "Unknown"}
+          ${new Date(a.timestamp).toLocaleTimeString()}
         </p>
+
+        <div class="alert-actions">
+          <button class="btn-ok"
+            onclick="resolveAlert('${alertId}', '${a.patientId}', 'correct_alert')">
+            ✅ Correct
+          </button>
+          <button class="btn-bad"
+            onclick="resolveAlert('${alertId}', '${a.patientId}', 'false_alarm')">
+            ❌ False
+          </button>
+        </div>
       `;
 
-      container.appendChild(card);
+      alertList.appendChild(div);
     });
   });
+
+function resolveAlert(alertId, patientId, result) {
+  const now = Date.now();
+
+  // 1️⃣ Mark alert resolved
+  firebase.database().ref(`alerts/${alertId}`).update({
+    active: false,
+    resolvedAt: now,
+    resolution: result
+  });
+
+  // 2️⃣ Send feedback to ML
+  firebase.database()
+    .ref(`patients/${patientId}/lastFeedback`)
+    .set(result);
+}
 </script>
+
 
 </body>
 </html>

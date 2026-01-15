@@ -286,6 +286,25 @@ def predict():
             "🚨 Wandering Alert",
             f"High risk detected ({risk})"
         )
+    # 🔔 STORE ALERT FOR CARETAKER (NEW)
+    if level == "alert" and should_send_alert(
+     d.get("prevRiskLevel"), level
+     ):
+    requests.post(
+        f"{FIREBASE_DB_URL}/alerts.json",
+        json={
+            "patientId": patient_id,
+            "riskScore": risk,
+            "riskLevel": level,
+            "timestamp": int(time.time() * 1000),
+
+            # 🔥 ALERT OPTIONS
+            "active": True,
+            "acknowledged": False,
+            "snoozedUntil": None
+        }
+    )
+
 
     logger.info(
         f"Prediction OK | patient={patient_id} | level={level} | risk={risk}"
