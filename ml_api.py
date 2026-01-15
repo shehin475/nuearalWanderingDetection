@@ -30,7 +30,7 @@ def normalize_distance(distance, safe_radius):
     return min(distance / safe_radius, 1.0)
 
 def normalize_time(time_outside):
-    return min(time_outside / 5.0, 1.0)
+    return min(time_outside / 15.0, 1.0)
 
 def normalize_speed(speed, avg_speed):
     if avg_speed <= 0:
@@ -123,14 +123,24 @@ def geofence_boost(distance, safe_radius):
     return 0.0
 
 # ---------------- FEEDBACK ----------------
-def apply_feedback(weights, feedback):
+def apply_feedback(patient_id,weights, feedback):
     adjust = 0.05
     if feedback == "false_alarm":
         weights["distance"] -= adjust
         weights["time"] -= adjust
+        requests.patch(
+           f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+           json={"lastFeedback": None}
+        )
+
     elif feedback == "correct_alert":
         weights["distance"] += adjust
         weights["time"] += adjust
+        requests.patch(
+           f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+           json={"lastFeedback": None}
+        )
+
 
     total = sum(weights.values())
     for k in weights:
@@ -152,12 +162,21 @@ def calculate_risk(distance, time_outside, speed, safe_radius, avg_speed,
         weights["speed"] * s
     )
 
+    total = sum(weights.values())
+    if total > 0:
+        weights = {k: v / total for k, v in weights.items()}
+
+
     total = base
     total += night_time_boost()
     total += context_boost(battery, is_raining, light_level)
     total += risk_trend_boost(history, base)
     total += zone_risk_boost(zone_map, zone_key)
     total += geofence_boost(distance, safe_radius)
+    logger.info(
+    f"Inputs | distance={distance}, safe_radius={safe_radius}, "
+    f"time={time_outside}, speed={speed}")
+
 
     return round(min(total, 1.0), 2)
 
@@ -238,12 +257,16 @@ def predict():
     samples = learning.get("samples", 0)
     safe_radius = patient.get("safeRadius", 200)
 
+    if not safe_radius or safe_radius <5:
+      safe_radius = 200  # fallback
+
+
     zone_key = get_zone_key(lat, lon)
     zone_map = update_zone_heatmap(zone_map, zone_key)
 
     weights = update_weights(weights, distance, time_outside, speed)
     if feedback:
-        weights = apply_feedback(weights, feedback)
+        weights = apply_feedback(patient_id,weights, feedback)
 
     risk = calculate_risk(
         distance, time_outside, speed, safe_radius,
