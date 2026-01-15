@@ -305,6 +305,13 @@ def predict():
             "snoozedUntil": None
         }
     )
+      
+      requests.post(
+        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+        json={
+            "riskScore": risk
+        }
+    )
 
 
     logger.info(
