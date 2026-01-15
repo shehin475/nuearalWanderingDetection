@@ -194,8 +194,7 @@ function alertUser(alert) {
         </span>
 
         <div class="risk-bar">
-          <div class="risk-fill risk-${level}"
-               style="width:${riskScore}%"></div>
+          <div class="risk-fill risk-${level}" style="width:${Math.min(riskScore, 1) * 100}%"></div>
         </div>
 
         <p><b>Risk Score:</b> ${riskScore}</p>
