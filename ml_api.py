@@ -276,7 +276,8 @@ def predict():
                 "lastUpdated": int(time.time())
             },
             "zoneHeatmap": zone_map,
-            "riskHistory": history
+            "riskHistory": history,
+            "riskScore": risk
         }
     )
 
