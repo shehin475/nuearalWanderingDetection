@@ -179,7 +179,7 @@ function alertUser(alert) {
 
     patients.forEach(p => {
       const riskScore = p.riskScore || 0;
-      const level = getRiskLevel(riskScore);
+      const level = getRiskLevel(p);
       const distance = p.distance ?? "N/A";
       const loc = p.currentLocation || {};
 
