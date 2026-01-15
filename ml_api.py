@@ -290,7 +290,7 @@ def predict():
     if level == "alert" and should_send_alert(
      d.get("prevRiskLevel"), level
      ):
-    requests.post(
+      requests.post(
         f"{FIREBASE_DB_URL}/alerts.json",
         json={
             "patientId": patient_id,
