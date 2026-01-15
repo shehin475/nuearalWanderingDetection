@@ -173,7 +173,7 @@ def calculate_risk(distance, time_outside, speed, safe_radius, avg_speed,
     total += risk_trend_boost(history, base)
     total += zone_risk_boost(zone_map, zone_key)
     total += geofence_boost(distance, safe_radius)
-    logger.info(
+    logging.info(
     f"Inputs | distance={distance}, safe_radius={safe_radius}, "
     f"time={time_outside}, speed={speed}")
 
