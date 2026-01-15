@@ -85,12 +85,66 @@
 
     .btn-ok { background: #22c55e; }
     .btn-bad { background: #ef4444; }
+
+    .alert-panel {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #020617;
+  border-left: 6px solid #ef4444;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 0 20px rgba(239,68,68,0.4);
+  z-index: 999;
+}
+
+.alert-panel.hidden {
+  display: none;
+}
+
+.alert-item {
+  background: #0f172a;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.alert-item h4 {
+  margin: 0 0 6px;
+  color: #ef4444;
+}
+
+.alert-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.alert-actions button {
+  flex: 1;
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+
   </style>
 </head>
 
 <body>
 <h1>🧑‍⚕️ Caretaker Dashboard</h1>
 <div id="patients"></div>
+
+<!-- 🚨 ALERT PANEL -->
+<div id="alertPanel" class="alert-panel hidden">
+  <h2>🚨 Active Alerts</h2>
+  <div id="alertList"></div>
+</div>
+
 
 <script>
   // 🔴 KEEP YOUR EXISTING FIREBASE CONFIG HERE
@@ -108,29 +162,51 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+
+  const alertPanel = document.getElementById("alertPanel");
+  const alertList = document.getElementById("alertList");
   const shownAlerts = new Set();
 
-  // 🔔 REAL-TIME ALERT LISTENER
+  // 🔔 LISTEN FOR WANDERING ALERTS
   db.ref("alerts").on("child_added", snap => {
     const alertData = snap.val();
     if (!alertData) return;
 
-    const key = snap.key;
-    if (shownAlerts.has(key)) return;
+    const alertId = snap.key;
+    if (shownAlerts.has(alertId)) return;
 
-    shownAlerts.add(key);
-    alertUser(alertData);
-  });
+    shownAlerts.add(alertId);
 
-  function alertUser(alertData) {
     if (alertData.riskLevel !== "alert") return;
 
-    window.alert(
-      "🚨 WANDERING ALERT\n\n" +
-      "Patient ID: " + alertData.patientId + "\n" +
-      "Risk Score: " + (alertData.riskScore * 100).toFixed(1) + "%\n\n" +
-      "Please check immediately."
-    );
+    showAlert(alertId, alertData);
+  });
+
+  function showAlert(alertId, alertData) {
+    alertPanel.classList.remove("hidden");
+
+    const div = document.createElement("div");
+    div.className = "alert-item";
+    div.id = `alert-${alertId}`;
+
+    div.innerHTML = `
+      <h4>Patient: ${alertData.patientId}</h4>
+      <p>Risk Score: ${(alertData.riskScore * 100).toFixed(1)}%</p>
+      <p class="muted">Time: ${new Date(alertData.timestamp).toLocaleTimeString()}</p>
+
+      <div class="alert-actions">
+        <button class="btn-ok"
+          onclick="sendFeedback('${alertData.patientId}', '${alertId}', 'correct_alert')">
+          ✅ Correct
+        </button>
+        <button class="btn-bad"
+          onclick="sendFeedback('${alertData.patientId}', '${alertId}', 'false_alarm')">
+          ❌ False
+        </button>
+      </div>
+    `;
+
+    alertList.prepend(div);
   }
 
   function getRiskLevel(p) {
@@ -150,6 +226,26 @@
     if (diff < 3600) return Math.floor(diff / 60) + " min ago";
     return Math.floor(diff / 3600) + " hrs ago";
   }
+
+  function sendFeedback(patientId, alertId, type) {
+  db.ref(`feedback/${patientId}/${alertId}`).set({
+    type: type,
+    timestamp: Date.now()
+  });
+
+  // Also store lastFeedback for ML learning
+  db.ref(`patients/${patientId}/lastFeedback`).set(type);
+
+  // Remove alert from panel
+  const el = document.getElementById(`alert-${alertId}`);
+  if (el) el.remove();
+
+  // Hide panel if empty
+  if (!alertList.children.length) {
+    alertPanel.classList.add("hidden");
+  }
+}
+
 
   db.ref("patients").on("value", snapshot => {
     const container = document.getElementById("patients");
@@ -196,16 +292,6 @@
           Location:
           ${loc.lat ? `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}` : "Unknown"}
         </p>
-
-        <button class="btn-ok"
-          onclick="submitFeedback('${p.id}', 'correct_alert')">
-          ✅ Alert Correct
-        </button>
-
-        <button class="btn-bad"
-          onclick="submitFeedback('${p.id}', 'false_alarm')">
-          ❌ False Alarm
-        </button>
       `;
 
       container.appendChild(card);
