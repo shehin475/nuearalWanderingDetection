@@ -110,43 +110,38 @@
 
   const shownAlerts = new Set();
 
-db.ref("alerts").on("child_added", snap => {
-  const alert = snap.val();
-  if (!alert) return;
+  // 🔔 REAL-TIME ALERT LISTENER
+  db.ref("alerts").on("child_added", snap => {
+    const alertData = snap.val();
+    if (!alertData) return;
 
-  const key = snap.key;
-  if (shownAlerts.has(key)) return;
+    const key = snap.key;
+    if (shownAlerts.has(key)) return;
 
-  shownAlerts.add(key);
+    shownAlerts.add(key);
+    alertUser(alertData);
+  });
 
-  alertUser(alert);
-});
+  function alertUser(alertData) {
+    if (alertData.riskLevel !== "alert") return;
 
+    window.alert(
+      "🚨 WANDERING ALERT\n\n" +
+      "Patient ID: " + alertData.patientId + "\n" +
+      "Risk Score: " + (alertData.riskScore * 100).toFixed(1) + "%\n\n" +
+      "Please check immediately."
+    );
+  }
 
   function getRiskLevel(p) {
-  // Priority 1: explicit riskLevel from backend
-  if (p.riskLevel === "alert" || p.riskLevel === 1) return "alert";
-  if (p.riskLevel === "warning") return "warning";
+    if (p.riskLevel === "alert" || p.riskLevel === 1) return "alert";
+    if (p.riskLevel === "warning") return "warning";
 
-  // Priority 2: fallback to score
-  const score = p.riskScore || 0;
-  if (score >= 70) return "alert";
-  if (score >= 40) return "warning";
-
-  return "normal";
-}
-
-function alertUser(alert) {
-  if (alert.riskLevel !== "alert") return;
-
-  alert(
-    "🚨 WANDERING ALERT\n\n" +
-    "Patient ID: " + alert.patientId + "\n" +
-    "Risk Score: " + alert.riskScore + "\n\n" +
-    "Please check immediately."
-  );
-}
-
+    const score = p.riskScore || 0;
+    if (score >= 0.8) return "alert";
+    if (score >= 0.6) return "warning";
+    return "normal";
+  }
 
   function timeAgo(ts) {
     if (!ts) return "Unknown";
@@ -155,8 +150,6 @@ function alertUser(alert) {
     if (diff < 3600) return Math.floor(diff / 60) + " min ago";
     return Math.floor(diff / 3600) + " hrs ago";
   }
-
-  // ---------------- LOAD PATIENTS ----------------
 
   db.ref("patients").on("value", snapshot => {
     const container = document.getElementById("patients");
@@ -168,13 +161,10 @@ function alertUser(alert) {
     }
 
     const patients = [];
-
     snapshot.forEach(child => {
-      const p = child.val();
-      patients.push({ id: child.key, ...p });
+      patients.push({ id: child.key, ...child.val() });
     });
 
-    // 🔥 Sort: alert → warning → normal
     patients.sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
 
     patients.forEach(p => {
@@ -189,21 +179,18 @@ function alertUser(alert) {
       card.innerHTML = `
         <h3>${p.name || "Unnamed"} (${p.id})</h3>
 
-        <span class="badge ${level}">
-          ${level.toUpperCase()}
-        </span>
+        <span class="badge ${level}">${level.toUpperCase()}</span>
+
+        <p><b>Risk Score:</b> ${(riskScore * 100).toFixed(1)}%</p>
 
         <div class="risk-bar">
-          <p><b>Risk Score:</b> ${(riskScore * 100).toFixed(1)}%</p>
-          <div class="risk-fill risk-${level}" style="width:${Math.min(riskScore, 1) * 100}%"></div>
+          <div class="risk-fill risk-${level}"
+               style="width:${Math.min(riskScore, 1) * 100}%"></div>
         </div>
 
-        <p><b>Risk Score:</b> ${riskScore}</p>
         <p><b>Distance:</b> ${distance} m</p>
 
-        <p class="muted">
-          Last Update: ${timeAgo(p.lastUpdated)}
-        </p>
+        <p class="muted">Last Update: ${timeAgo(p.lastUpdated)}</p>
 
         <p class="muted">
           Location:
@@ -224,21 +211,7 @@ function alertUser(alert) {
       container.appendChild(card);
     });
   });
-
-  // ---------------- FEEDBACK ----------------
-
-  function submitFeedback(patientId, type) {
-    const id = "fb_" + Date.now();
-
-    db.ref(`feedback/${patientId}/${id}`).set({
-      type,
-      timestamp: Date.now()
-    });
-
-    db.ref(`patients/${patientId}/lastFeedback`).set(type);
-
-    alert("Feedback saved");
-  }
 </script>
+
 </body>
 </html>
