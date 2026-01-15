@@ -10,6 +10,8 @@ from google.auth.transport.requests import Request
 from dotenv import load_dotenv
 import logging
 
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",

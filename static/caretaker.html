@@ -108,11 +108,45 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  function getRiskLevel(score) {
-    if (score >= 70) return "alert";
-    if (score >= 40) return "warning";
-    return "normal";
-  }
+  const shownAlerts = new Set();
+
+db.ref("alerts").on("child_added", snap => {
+  const alert = snap.val();
+  if (!alert) return;
+
+  const key = snap.key;
+  if (shownAlerts.has(key)) return;
+
+  shownAlerts.add(key);
+
+  alertUser(alert);
+});
+
+
+  function getRiskLevel(p) {
+  // Priority 1: explicit riskLevel from backend
+  if (p.riskLevel === "alert" || p.riskLevel === 1) return "alert";
+  if (p.riskLevel === "warning") return "warning";
+
+  // Priority 2: fallback to score
+  const score = p.riskScore || 0;
+  if (score >= 70) return "alert";
+  if (score >= 40) return "warning";
+
+  return "normal";
+}
+
+function alertUser(alert) {
+  if (alert.riskLevel !== "alert") return;
+
+  alert(
+    "🚨 WANDERING ALERT\n\n" +
+    "Patient ID: " + alert.patientId + "\n" +
+    "Risk Score: " + alert.riskScore + "\n\n" +
+    "Please check immediately."
+  );
+}
+
 
   function timeAgo(ts) {
     if (!ts) return "Unknown";
