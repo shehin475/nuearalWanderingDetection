@@ -306,7 +306,7 @@ def predict():
         }
     )
       
-      requests.post(
+      requests.patch(
         f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
         json={
             "riskScore": risk
