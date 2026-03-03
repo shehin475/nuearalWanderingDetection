@@ -175,12 +175,14 @@ def get_access_token():
     cred.refresh(Request())
     return cred.token
 
-def send_push(token, title, body):
+def send_push(token, title, body, patient_id=None):
     try:
+        access_token = get_access_token()
+
         response = requests.post(
             f"https://fcm.googleapis.com/v1/projects/{PROJECT_ID}/messages:send",
             headers={
-                "Authorization": f"Bearer {get_access_token()}",
+                "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json"
             },
             json={
@@ -189,21 +191,53 @@ def send_push(token, title, body):
                     "notification": {
                         "title": title,
                         "body": body
+                    },
+                    "android": {
+                        "priority": "HIGH"
                     }
                 }
             },
             timeout=5
         )
 
-        logger.info(f"FCM Response: {response.status_code} {response.text}")
+        if response.status_code == 404:
+            if "UNREGISTERED" in response.text and patient_id:
+                # delete bad token
+                requests.patch(
+                    f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+                    json={"fcmToken": None}
+                )
+                logger.warning("Deleted invalid FCM token")
+
+        logger.info(response.text)
 
     except Exception as e:
-        logger.warning(f"Push failed: {e}")
+        logger.error(f"Push failed: {e}")
 
 def should_send_alert(prev, new):
     return prev != "alert" and new == "alert"
 
 # ---------------- API ----------------
+
+@app.route("/update-fcm-token", methods=["POST"])
+def update_fcm_token():
+    data = request.get_json()
+
+    patient_id = data.get("patientId")
+    token = data.get("fcmToken")
+
+    if not patient_id or not token:
+        return jsonify({"status": "error"}), 400
+
+    requests.patch(
+        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+        json={"fcmToken": token}
+    )
+
+    logger.info(f"Token updated for {patient_id}")
+
+    return jsonify({"status": "success"})
+
 @app.route("/predict", methods=["POST"])
 def predict():
     d = request.get_json(silent=True)
@@ -291,7 +325,8 @@ def predict():
         send_push(
             patient["fcmToken"],
             "🚨 Wandering Alert",
-            f"High risk detected ({risk})"
+            f"High risk detected ({risk})",
+            patient_id
         )
     # 🔔 STORE ALERT FOR CARETAKER (NEW)
     if level == "alert" and should_send_alert(
