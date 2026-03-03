@@ -177,7 +177,7 @@ def get_access_token():
 
 def send_push(token, title, body):
     try:
-        requests.post(
+        response = requests.post(
             f"https://fcm.googleapis.com/v1/projects/{PROJECT_ID}/messages:send",
             headers={
                 "Authorization": f"Bearer {get_access_token()}",
@@ -186,13 +186,19 @@ def send_push(token, title, body):
             json={
                 "message": {
                     "token": token,
-                    "notification": {"title": title, "body": body}
+                    "notification": {
+                        "title": title,
+                        "body": body
+                    }
                 }
             },
             timeout=5
         )
+
+        logger.info(f"FCM Response: {response.status_code} {response.text}")
+
     except Exception as e:
-        logger.warning(f"Push skipped: {e}")
+        logger.warning(f"Push failed: {e}")
 
 def should_send_alert(prev, new):
     return prev != "alert" and new == "alert"
