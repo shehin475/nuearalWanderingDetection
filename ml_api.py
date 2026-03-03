@@ -243,7 +243,7 @@ def firebase_config():
     return jsonify({
         "apiKey": os.getenv("FIREBASE_API_KEY"),
         "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
-        "databaseURL": os.getenv("FIREBASE_DATABASE_URL"),
+        "databaseURL": os.getenv("FIREBASE_DB_URL"),
         "projectId": os.getenv("FIREBASE_PROJECT_ID"),
         "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
         "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
