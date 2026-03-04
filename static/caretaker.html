@@ -380,44 +380,46 @@ db.ref("patients/"+id).remove()
 
 
 
-window.setSafeCenter=function(id){
+window.setSafeCenter = function(id){
 
-db.ref("patients/"+id+"/currentLocation")
+  db.ref("patients/"+id+"/currentLocation")
+  .once("value")
+  .then(snap=>{
 
-.once("value")
+    const loc = snap.val()
 
-.then(snap=>{
+    if(!loc){
+      alert("❌ No location received from patient phone")
+      return
+    }
 
-const loc=snap.val()
+    const lat = loc.latitude
+    const lng = loc.longitude
 
-if(!loc){
+    const confirmMsg =
+    "Set Safe Center for patient: " + id + "\n\n" +
+    "Latitude: " + lat + "\n" +
+    "Longitude: " + lng + "\n\n" +
+    "Do you want to confirm?"
 
-alert("No location from patient phone")
+    if(confirm(confirmMsg)){
 
-return
+      db.ref("patients/"+id+"/safeCenter").set({
+        lat: lat,
+        lng: lng
+      })
+
+      alert(
+        "✅ Safe Center Updated\n\n" +
+        "Latitude: " + lat +
+        "\nLongitude: " + lng
+      )
+
+    }
+
+  })
 
 }
-
-
-
-db.ref("patients/"+id+"/safeCenter")
-
-.set({
-
-lat:loc.latitude,
-
-lng:loc.longitude
-
-})
-
-
-
-alert("Safe center updated")
-
-})
-
-}
-
 
 
 /* ALERT SYSTEM */
@@ -489,28 +491,15 @@ document.getElementById("alertSound").play()
 }
 
 
+window.resolveAlert = function(alertId, patientId, result) {
 
-window.resolveAlert=function(alertId,patientId,result){
+  // Save feedback to patient record
+  db.ref("patients/" + patientId + "/lastFeedback").set(result);
 
-db.ref("alerts/"+alertId)
-
-.update({
-
-active:false,
-
-resolution:result
-
-})
-
-
-
-db.ref("patients/"+patientId+"/lastFeedback")
-
-.set(result)
+  // Delete alert from database
+  db.ref("alerts/" + alertId).remove();
 
 }
-
-
 
 }
 
