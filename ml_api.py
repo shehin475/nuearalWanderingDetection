@@ -135,6 +135,20 @@ def apply_feedback(patient_id, weights, feedback):
 
     return weights
 
+# -------- JSON SERIALIZER --------
+def make_json_serializable(obj):
+    """Convert all non-JSON-serializable objects to JSON-serializable format"""
+    if isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, float):
+        return round(obj, 6)  # Round floats to avoid precision issues
+    elif isinstance(obj, int):
+        return int(obj)
+    else:
+        return obj
+
 # ---------------- RISK CORE ----------------
 def calculate_risk(distance, time_outside, speed, safe_radius,
                    avg_speed, weights, battery, is_raining,
@@ -365,35 +379,42 @@ def predict():
     payload = {
         # movement info
         "currentLocation": {
-            "lat": lat,
-            "lon": lon
+            "lat": round(lat, 6),
+            "lon": round(lon, 6)
         },
-        "speed": speed,
-        "distance": distance,
+        "speed": round(float(speed), 6),
+        "distance": round(float(distance), 6),
         "status": status,
-        "riskScore": risk,
+        "riskScore": round(float(risk), 4),
         "riskLevel": level,
         "lastUpdated": int(time.time() * 1000),
 
         # learning system
         "learning": {
-            "avgSpeed": update_learning(avg_speed, speed, samples),
-            "samples": samples + 1,
-            "weights": weights,
+            "avgSpeed": round(float(update_learning(avg_speed, speed, samples)), 6),
+            "samples": int(samples + 1),
+            "weights": {
+                "distance": round(float(weights.get("distance", 0.4)), 4),
+                "time": round(float(weights.get("time", 0.4)), 4),
+                "speed": round(float(weights.get("speed", 0.2)), 4)
+            },
             "lastUpdated": int(time.time())
         },
 
-        # history
-        "zoneHeatmap": zone_map,
-        "riskHistory": history
+        # history - convert keys to strings explicitly
+        "zoneHeatmap": {str(k): int(v) for k, v in zone_map.items()} if zone_map else {},
+        "riskHistory": {str(k): round(float(v), 4) for k, v in history.items()} if history else {}
     }
     
+    # Ensure all values are JSON-serializable
+    payload = make_json_serializable(payload)
+    
     logger.info(f"Firebase URL: {FIREBASE_DB_URL}")
-    logger.info(f"Sending payload: {json.dumps(payload, default=str)}")
+    logger.info(f"Sending payload: {json.dumps(payload)}")
     
     try:
         url = f"{FIREBASE_DB_URL}/patients/{patient_id}.json"
-        resp = requests.patch(url, json=payload, timeout=5)
+        resp = requests.patch(url, json=payload, timeout=10)
         
         logger.info(f"Firebase Response Status: {resp.status_code}")
         logger.info(f"Firebase Response: {resp.text}")
