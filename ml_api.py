@@ -1,5 +1,3 @@
-from turtle import distance
-
 from flask import Flask, request, jsonify, send_from_directory
 import time
 import requests
