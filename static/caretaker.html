@@ -917,7 +917,7 @@ function initApp() {
 
       const riskScore = p.riskScore || 0;
       const riskPercent = Math.min(100, Math.round(riskScore * 100));
-      const statusBadgeClass = p.status === 'Danger' ? 'danger' : p.status === 'Warning' ? 'warning' : 'safe';
+      const statusBadgeClass = p.status === 'outside' ? 'danger' : p.status === 'warning' ? 'warning' : 'safe';
 
       html += `
         <div class="card patient-card">
