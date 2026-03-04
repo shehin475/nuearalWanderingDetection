@@ -9,6 +9,8 @@ import logging
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from dotenv import load_dotenv
+import firebase_admin
+from firebase_admin import db, credentials
 
 # ---------------- LOGGING ----------------
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
@@ -27,6 +29,21 @@ app = Flask(__name__, static_folder="static")
 
 FIREBASE_DB_URL = os.getenv("FIREBASE_DB_URL")
 PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID")
+
+# Initialize Firebase Admin SDK
+try:
+    firebase_creds_str = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if firebase_creds_str:
+        firebase_creds_dict = json.loads(firebase_creds_str)
+        creds = credentials.Certificate(firebase_creds_dict)
+        firebase_admin.initialize_app(creds, {
+            'databaseURL': FIREBASE_DB_URL
+        })
+        logger.info("✅ Firebase Admin SDK initialized")
+    else:
+        logger.warning("⚠️ GOOGLE_APPLICATION_CREDENTIALS not set - using unauthenticated Firebase")
+except Exception as e:
+    logger.error(f"❌ Firebase initialization error: {e}")
 
 # ---------------- NORMALIZATION ----------------
 # Small values friendly (college project)
@@ -128,10 +145,11 @@ def apply_feedback(patient_id, weights, feedback):
     weights = normalize_weights(weights)
 
     # clear feedback after use
-    requests.patch(
-        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-        json={"lastFeedback": None}
-    )
+    try:
+        ref = db.reference(f'patients/{patient_id}')
+        ref.update({"lastFeedback": None})
+    except Exception as e:
+        logger.error(f"Failed to clear feedback: {e}")
 
     return weights
 
@@ -216,12 +234,13 @@ def send_push(token, title, body, patient_id=None):
 
         if response.status_code == 404:
             if "UNREGISTERED" in response.text and patient_id:
-                # delete bad token
-                requests.patch(
-                    f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-                    json={"fcmToken": None}
-                )
-                logger.warning("Deleted invalid FCM token")
+                # delete bad token using Firebase Admin SDK
+                try:
+                    ref = db.reference(f'patients/{patient_id}')
+                    ref.update({"fcmToken": None})
+                    logger.warning("Deleted invalid FCM token")
+                except Exception as e:
+                    logger.error(f"Failed to delete FCM token: {e}")
 
         logger.info(response.text)
 
@@ -243,14 +262,14 @@ def update_fcm_token():
     if not patient_id or not token:
         return jsonify({"status": "error"}), 400
 
-    requests.patch(
-        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-        json={"fcmToken": token}
-    )
-
-    logger.info(f"Token updated for {patient_id}")
-
-    return jsonify({"status": "success"})
+    try:
+        ref = db.reference(f'patients/{patient_id}')
+        ref.update({"fcmToken": token})
+        logger.info(f"Token updated for {patient_id}")
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Failed to update FCM token: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/firebase-config")
 def firebase_config():
@@ -324,14 +343,12 @@ def predict():
     light = d.get("lightLevel", "normal")
     feedback = d.get("feedback")
 
-    resp = requests.get(
-        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-        timeout=5
-    )
-
+    # Fetch patient data using Firebase Admin SDK
     try:
-        patient = resp.json() if resp.status_code == 200 else None
-    except Exception:
+        ref = db.reference(f'patients/{patient_id}')
+        patient = ref.get()
+    except Exception as e:
+        logger.error(f"Failed to fetch patient data: {e}")
         patient = None
 
     if not patient:
@@ -375,7 +392,7 @@ def predict():
     if distance > safe_radius:
        status = "outside"
 
-    # Update main patient data including distance
+    # Update main patient data using Firebase Admin SDK
     payload = {
         # movement info
         "currentLocation": {
@@ -401,31 +418,21 @@ def predict():
             "lastUpdated": int(time.time())
         },
 
-        # history - convert keys to strings explicitly
+        # history
         "zoneHeatmap": {str(k): int(v) for k, v in zone_map.items()} if zone_map else {},
         "riskHistory": {str(k): round(float(v), 4) for k, v in history.items()} if history else {}
     }
     
-    # Ensure all values are JSON-serializable
-    payload = make_json_serializable(payload)
-    
-    logger.info(f"Firebase URL: {FIREBASE_DB_URL}")
-    logger.info(f"Sending payload: {json.dumps(payload)}")
+    logger.info(f"Payload to save: {json.dumps(payload)}")
     
     try:
-        url = f"{FIREBASE_DB_URL}/patients/{patient_id}.json"
-        resp = requests.patch(url, json=payload, timeout=10)
-        
-        logger.info(f"Firebase Response Status: {resp.status_code}")
-        logger.info(f"Firebase Response: {resp.text}")
-        
-        if resp.status_code not in [200, 204]:
-            logger.error(f"❌ Firebase update FAILED: {resp.status_code} - {resp.text}")
-        else:
-            logger.info(f"✅ Distance updated: {distance}m for patient {patient_id}")
+        # Use Firebase Admin SDK
+        ref = db.reference(f'patients/{patient_id}')
+        ref.update(payload)
+        logger.info(f"✅ Distance updated: {distance}m for patient {patient_id}")
             
     except Exception as e:
-        logger.error(f"❌ Firebase PATCH Exception: {str(e)}", exc_info=True)
+        logger.error(f"❌ Firebase update error: {str(e)}", exc_info=True)
 
     if level == "alert" and patient.get("fcmToken"):
         send_push(
@@ -438,22 +445,19 @@ def predict():
     # Store alert for caretaker dashboard
     if level == "alert" and should_send_alert(d.get("prevRiskLevel"), level):
         try:
-            requests.post(
-                f"{FIREBASE_DB_URL}/alerts.json",
-                json={
-                    "patientId": patient_id,
-                    "riskScore": risk,
-                    "riskLevel": level,
-                    "timestamp": int(time.time() * 1000),
-                    "active": True,
-                    "acknowledged": False,
-                    "snoozedUntil": None
-                },
-                timeout=5
-            )
-            logger.info(f"Alert stored for patient {patient_id}")
+            alert_data = {
+                "patientId": patient_id,
+                "riskScore": round(float(risk), 4),
+                "riskLevel": level,
+                "timestamp": int(time.time() * 1000),
+                "active": True,
+                "acknowledged": False,
+                "snoozedUntil": None
+            }
+            alerts_ref = db.reference('alerts').push(alert_data)
+            logger.info(f"✅ Alert stored for patient {patient_id}")
         except Exception as e:
-            logger.error(f"Failed to store alert: {e}")
+            logger.error(f"❌ Failed to store alert: {e}")
 
 
     logger.info(
