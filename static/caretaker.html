@@ -740,6 +740,11 @@ input::placeholder {
         </div>
       </div>
 
+      <!-- ACTION BUTTONS -->
+      <div style="margin-bottom: 20px;">
+        <button class="btn-danger" onclick="clearAllAlerts()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">🗑️ Clear All Alerts</button>
+      </div>
+
       <!-- ALERTS LIST -->
       <div id="alerts" class="alerts-list"></div>
 
@@ -1167,6 +1172,27 @@ function initApp() {
     db.ref("patients/" + patientId + "/lastFeedback").set(result);
     db.ref("alerts/" + alertId).remove();
     alert("✅ Alert resolved: " + result);
+  };
+
+  window.clearAllAlerts = function() {
+    const alertCount = Object.keys(alertCache).length;
+    
+    if (alertCount === 0) {
+      alert("ℹ️ No alerts to clear");
+      return;
+    }
+
+    if (confirm(`⚠️ Are you sure you want to clear all ${alertCount} alerts?\n\nThis action cannot be undone.`)) {
+      try {
+        Object.keys(alertCache).forEach(alertId => {
+          db.ref("alerts/" + alertId).remove();
+        });
+        alert("✅ All alerts cleared successfully!");
+        renderAlerts();
+      } catch (e) {
+        alert("❌ Error clearing alerts: " + e.message);
+      }
+    }
   };
 
   // Close modal when clicking outside
