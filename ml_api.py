@@ -1,3 +1,5 @@
+from turtle import distance
+
 from flask import Flask, request, jsonify, send_from_directory
 import time
 import requests
@@ -318,19 +320,37 @@ def predict():
     elif risk > 0.6:
         level = "warning"
 
+    status = "inside"
+    if distance > safe_radius:
+       status = "outside"
+
     requests.patch(
-        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-        json={
-            "learning": {
-                "avgSpeed": update_learning(avg_speed, speed, samples),
-                "samples": samples + 1,
-                "weights": weights,
-                "lastUpdated": int(time.time())
-            },
-            "zoneHeatmap": zone_map,
-            "riskHistory": history,
-            "riskScore": risk
-        }
+      f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+      json={
+        # movement info
+        "currentLocation": {
+            "lat": lat,
+            "lon": lon
+        },
+        "speed": speed,
+        "distance": distance,
+        "status": status,
+        "riskScore": risk,
+        "riskLevel": level,
+        "lastUpdated": int(time.time() * 1000),
+
+        # learning system
+        "learning": {
+            "avgSpeed": update_learning(avg_speed, speed, samples),
+            "samples": samples + 1,
+            "weights": weights,
+            "lastUpdated": int(time.time())
+        },
+
+        # history
+        "zoneHeatmap": zone_map,
+        "riskHistory": history
+    }
     )
 
     if level == "alert" and patient.get("fcmToken"):
