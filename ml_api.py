@@ -334,7 +334,7 @@ def predict():
     distance = float(d.get("distance", 0))
     time_outside = int(d.get("time_outside", 0))
     
-    logger.info(f"Received request: patientId={patient_id}, distance={distance}, speed={speed}")
+    logger.info(f"✅ Received request: patientId={patient_id}, distance={distance}, speed={speed}")
     lat = float(d.get("latitude", 0))
     lon = float(d.get("longitude", 0))
 
@@ -424,12 +424,48 @@ def predict():
     }
     
     logger.info(f"Payload to save: {json.dumps(payload)}")
+    logger.info(f"📍 About to save distance: {distance}m (rounded: {round(float(distance), 6)})")
     
     try:
-        # Use Firebase Admin SDK
+        # Use Firebase Admin SDK - Update each field individually to avoid serialization issues
         ref = db.reference(f'patients/{patient_id}')
-        ref.update(payload)
-        logger.info(f"✅ Distance updated: {distance}m for patient {patient_id}")
+        
+        # Update basic fields
+        logger.info("Updating: currentLocation")
+        ref.child('currentLocation').set({
+            "lat": float(round(lat, 6)),
+            "lon": float(round(lon, 6))
+        })
+        
+        logger.info(f"Updating: distance = {distance}")
+        ref.child('distance').set(float(round(distance, 6)))
+        
+        logger.info("Updating: speed")
+        ref.child('speed').set(float(round(speed, 6)))
+        
+        logger.info("Updating: status, riskScore, riskLevel, lastUpdated")
+        ref.child('status').set(status)
+        ref.child('riskScore').set(float(round(risk, 4)))
+        ref.child('riskLevel').set(level)
+        ref.child('lastUpdated').set(int(time.time() * 1000))
+        
+        # Update learning
+        logger.info("Updating: learning data")
+        ref.child('learning/avgSpeed').set(float(round(update_learning(avg_speed, speed, samples), 6)))
+        ref.child('learning/samples').set(int(samples + 1))
+        ref.child('learning/weights/distance').set(float(round(weights.get("distance", 0.4), 4)))
+        ref.child('learning/weights/time').set(float(round(weights.get("time", 0.4), 4)))
+        ref.child('learning/weights/speed').set(float(round(weights.get("speed", 0.2), 4)))
+        ref.child('learning/lastUpdated').set(int(time.time()))
+        
+        # Update heatmaps and history
+        logger.info("Updating: heatmap and history")
+        if zone_map:
+            ref.child('zoneHeatmap').set({str(k): int(v) for k, v in zone_map.items()})
+        if history:
+            ref.child('riskHistory').set({str(k): float(round(v, 4)) for k, v in history.items()})
+        
+        logger.info(f"✅ All data updated successfully! Distance: {distance}m for patient {patient_id}")
             
     except Exception as e:
         logger.error(f"❌ Firebase update error: {str(e)}", exc_info=True)
