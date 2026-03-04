@@ -119,7 +119,10 @@ def update_risk_history(history, risk):
 
 # ---------------- ZONE ----------------
 def get_zone_key(lat, lon, precision=3):
-    return f"{round(lat, precision)}_{round(lon, precision)}"
+    # Replace dots with underscores since Firebase doesn't allow dots in keys
+    lat_str = str(round(lat, precision)).replace(".", "_")
+    lon_str = str(round(lon, precision)).replace(".", "_")
+    return f"{lat_str}_{lon_str}"
 
 def update_zone_heatmap(zone_map, key):
     zone_map = zone_map or {}
@@ -460,10 +463,18 @@ def predict():
         
         # Update heatmaps and history
         logger.info("Updating: heatmap and history")
-        if zone_map:
-            ref.child('zoneHeatmap').set({str(k): int(v) for k, v in zone_map.items()})
-        if history:
-            ref.child('riskHistory').set({str(k): float(round(v, 4)) for k, v in history.items()})
+        try:
+            if zone_map:
+                logger.info(f"Zone map keys: {list(zone_map.keys())}")
+                ref.child('zoneHeatmap').set({str(k): int(v) for k, v in zone_map.items()})
+        except Exception as e:
+            logger.error(f"❌ Failed to update zoneHeatmap: {e}")
+        
+        try:
+            if history:
+                ref.child('riskHistory').set({str(k): float(round(v, 4)) for k, v in history.items()})
+        except Exception as e:
+            logger.error(f"❌ Failed to update riskHistory: {e}")
         
         logger.info(f"✅ All data updated successfully! Distance: {distance}m for patient {patient_id}")
             
