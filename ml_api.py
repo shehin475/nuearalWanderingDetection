@@ -250,6 +250,43 @@ def firebase_config():
         "appId": os.getenv("FIREBASE_APP_ID"),
     })
 
+@app.route("/test-firebase", methods=["GET"])
+def test_firebase():
+    """Test Firebase connection and permissions"""
+    logger.info("Testing Firebase connection...")
+    
+    if not FIREBASE_DB_URL:
+        return jsonify({"error": "FIREBASE_DB_URL not set"}), 500
+    
+    logger.info(f"Firebase DB URL: {FIREBASE_DB_URL}")
+    
+    try:
+        # Test GET
+        test_url = f"{FIREBASE_DB_URL}/.json"
+        logger.info(f"Testing GET: {test_url}")
+        resp = requests.get(test_url, timeout=5)
+        logger.info(f"GET Response: {resp.status_code} - {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            return jsonify({
+                "error": "Unauthorized - Firebase requires authentication",
+                "status": resp.status_code,
+                "message": "Check database rules and credentials"
+            }), 401
+        
+        return jsonify({
+            "message": "Firebase connection OK",
+            "status": resp.status_code,
+            "firebase_db_url": FIREBASE_DB_URL
+        })
+        
+    except Exception as e:
+        logger.error(f"Firebase connection error: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": str(e),
+            "firebase_db_url": FIREBASE_DB_URL
+        }), 500
+
 @app.route("/predict", methods=["POST"])
 def predict():
     d = request.get_json(silent=True)
@@ -263,6 +300,8 @@ def predict():
     speed = float(d.get("speed", 0))
     distance = float(d.get("distance", 0))
     time_outside = int(d.get("time_outside", 0))
+    
+    logger.info(f"Received request: patientId={patient_id}, distance={distance}, speed={speed}")
     lat = float(d.get("latitude", 0))
     lon = float(d.get("longitude", 0))
 
@@ -349,20 +388,23 @@ def predict():
         "riskHistory": history
     }
     
+    logger.info(f"Firebase URL: {FIREBASE_DB_URL}")
+    logger.info(f"Sending payload: {json.dumps(payload, default=str)}")
+    
     try:
-        resp = requests.patch(
-            f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-            json=payload,
-            timeout=5
-        )
+        url = f"{FIREBASE_DB_URL}/patients/{patient_id}.json"
+        resp = requests.patch(url, json=payload, timeout=5)
+        
+        logger.info(f"Firebase Response Status: {resp.status_code}")
+        logger.info(f"Firebase Response: {resp.text}")
         
         if resp.status_code not in [200, 204]:
-            logger.error(f"Firebase update failed: {resp.status_code} - {resp.text}")
+            logger.error(f"❌ Firebase update FAILED: {resp.status_code} - {resp.text}")
         else:
-            logger.info(f"Distance updated: {distance}m for patient {patient_id}")
+            logger.info(f"✅ Distance updated: {distance}m for patient {patient_id}")
             
     except Exception as e:
-        logger.error(f"Firebase PATCH error: {e}")
+        logger.error(f"❌ Firebase PATCH Exception: {str(e)}", exc_info=True)
 
     if level == "alert" and patient.get("fcmToken"):
         send_push(
