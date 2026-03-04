@@ -10,179 +10,511 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-body { font-family: Arial; background:#0f172a; color:white; padding:20px; }
-.card { background:#020617; padding:16px; border-radius:10px; margin-bottom:16px; }
-button { padding:6px 10px; border:none; border-radius:6px; cursor:pointer; }
-input, select { width:100%; padding:8px; margin-bottom:8px; border-radius:6px; border:none; }
-.hidden { display:none; }
-.tabs { display:flex; gap:10px; margin-bottom:20px; }
-.tab-btn { background:#1e293b; color:white; }
-.tab-btn.active { background:#38bdf8; }
-.alert-card { border-left:6px solid red; }
+
+body{
+font-family:Arial;
+background:#0f172a;
+color:white;
+padding:20px;
+}
+
+.card{
+background:#020617;
+padding:16px;
+border-radius:10px;
+margin-bottom:16px;
+}
+
+button{
+padding:6px 10px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+input,select{
+width:100%;
+padding:8px;
+margin-bottom:8px;
+border-radius:6px;
+border:none;
+}
+
+.hidden{display:none;}
+
+.tabs{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+.tab-btn{
+background:#1e293b;
+color:white;
+}
+
+.tab-btn.active{
+background:#38bdf8;
+}
+
+.alert-card{
+border-left:6px solid red;
+}
+
 </style>
 </head>
+
 <body>
 
 <h1>🧑‍⚕️ Caretaker Dashboard</h1>
 
+<!-- LOGIN -->
+
 <div id="loginBox" class="card">
-  <h3>Login</h3>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
+
+<h3>Login</h3>
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="login()">Login</button>
+
 </div>
+
+
+<!-- DASHBOARD -->
 
 <div id="dashboard" class="hidden">
 
-  <button onclick="logout()">Logout</button>
-  <hr>
+<button onclick="logout()">Logout</button>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('patientsTab', this)">Patients</button>
-    <button class="tab-btn" onclick="switchTab('alertsTab', this)">Alerts</button>
-  </div>
+<hr>
 
-  <div id="patientsTab">
-    <button onclick="addPatient()">➕ Add Patient</button>
-    <div id="patients"></div>
-  </div>
+<div class="tabs">
 
-  <div id="alertsTab" class="hidden">
-    <select id="patientFilter" onchange="renderAlerts()">
-      <option value="all">All Patients</option>
-    </select>
-    <div id="alerts"></div>
-  </div>
+<button class="tab-btn active" onclick="switchTab('patientsTab',this)">Patients</button>
+
+<button class="tab-btn" onclick="switchTab('alertsTab',this)">Alerts</button>
 
 </div>
 
-<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
+<!-- PATIENTS TAB -->
+
+<div id="patientsTab">
+
+<button onclick="openPatientForm()">➕ Add Patient</button>
+
+<div id="patients"></div>
+
+</div>
+
+
+<!-- ALERT TAB -->
+
+<div id="alertsTab" class="hidden">
+
+<select id="patientFilter" onchange="renderAlerts()">
+
+<option value="all">All Patients</option>
+
+</select>
+
+<div id="alerts"></div>
+
+</div>
+
+
+</div>
+
+
+<!-- PATIENT FORM -->
+
+<div id="patientForm" class="card hidden">
+
+<h3>Add / Edit Patient</h3>
+
+<input id="pid" placeholder="Patient ID">
+
+<input id="pname" placeholder="Name">
+
+<input id="page" placeholder="Age">
+
+<input id="pcondition" placeholder="Condition">
+
+<input id="psafeRadius" placeholder="Safe Radius (meters)">
+
+<button onclick="savePatient()">Save Patient</button>
+
+<button onclick="closeForm()">Cancel</button>
+
+</div>
+
+
+<audio id="alertSound"
+src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">
+</audio>
+
 
 <script>
 
-/* 🔥 Load Firebase config securely from backend */
+/* Load firebase config */
+
 fetch("/firebase-config")
+
 .then(res=>res.json())
+
 .then(config=>{
-  firebase.initializeApp(config);
-  initApp();
-});
+firebase.initializeApp(config)
+initApp()
+})
+
+
 
 function initApp(){
 
-const auth=firebase.auth();
-const db=firebase.database();
+const auth=firebase.auth()
+const db=firebase.database()
+
+
 
 auth.onAuthStateChanged(user=>{
-  if(user){
-    loginBox.classList.add("hidden");
-    dashboard.classList.remove("hidden");
-    loadPatients();
-    listenAlerts();
-  }else{
-    loginBox.classList.remove("hidden");
-    dashboard.classList.add("hidden");
-  }
-});
+
+if(user){
+
+loginBox.classList.add("hidden")
+dashboard.classList.remove("hidden")
+
+loadPatients()
+listenAlerts()
+
+}
+
+else{
+
+loginBox.classList.remove("hidden")
+dashboard.classList.add("hidden")
+
+}
+
+})
+
+
 
 window.login=function(){
-  auth.signInWithEmailAndPassword(email.value,password.value)
-      .catch(e=>alert(e.message));
+
+auth.signInWithEmailAndPassword(
+
+email.value,
+password.value
+
+).catch(e=>alert(e.message))
+
 }
+
+
 
 window.logout=function(){
-  auth.signOut();
+
+auth.signOut()
+
 }
+
+
 
 window.switchTab=function(tab,btn){
-  patientsTab.classList.add("hidden");
-  alertsTab.classList.add("hidden");
-  document.getElementById(tab).classList.remove("hidden");
-  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
+
+patientsTab.classList.add("hidden")
+alertsTab.classList.add("hidden")
+
+document.getElementById(tab).classList.remove("hidden")
+
+document.querySelectorAll(".tab-btn")
+
+.forEach(b=>b.classList.remove("active"))
+
+btn.classList.add("active")
+
 }
 
-/* PATIENTS */
+
+
 function loadPatients(){
-  db.ref("patients").on("value",snap=>{
-    patients.innerHTML="";
-    patientFilter.innerHTML='<option value="all">All Patients</option>';
 
-    snap.forEach(child=>{
-      const id=child.key;
-      const p=child.val();
+db.ref("patients").on("value",snap=>{
 
-      patientFilter.innerHTML+=`<option value="${id}">${id}</option>`;
+patients.innerHTML=""
 
-      patients.innerHTML+=`
-        <div class="card">
-          <h3>${p.name||"Unnamed"} (${id})</h3>
-          <p>Risk: ${((p.riskScore||0)*100).toFixed(1)}%</p>
-          <button onclick="deletePatient('${id}')">Delete</button>
-        </div>
-      `;
-    });
-  });
+patientFilter.innerHTML='<option value="all">All Patients</option>'
+
+
+
+snap.forEach(child=>{
+
+const id=child.key
+const p=child.val()
+
+patientFilter.innerHTML+=`<option value="${id}">${id}</option>`
+
+
+
+patients.innerHTML+=`
+
+<div class="card">
+
+<h3>${p.name} (${id})</h3>
+
+<p>Age: ${p.age}</p>
+
+<p>Condition: ${p.condition}</p>
+
+<p>Status: ${p.status}</p>
+
+<p>Risk Level: ${p.riskLevel}</p>
+
+<p>Risk Score: ${p.riskScore}</p>
+
+<p>Speed: ${p.speed}</p>
+
+<p>Distance: ${p.distance}</p>
+
+<p>Safe Radius: ${p.safeRadius}</p>
+
+<p>Last Feedback: ${p.lastFeedback}</p>
+
+<p>Last Updated: ${new Date(p.lastUpdated).toLocaleString()}</p>
+
+<button onclick="editPatient('${id}')">Edit</button>
+
+<button onclick="setSafeCenter('${id}')">Set Safe Center</button>
+
+<button onclick="deletePatient('${id}')">Delete</button>
+
+</div>
+
+`
+
+})
+
+})
+
 }
 
-window.addPatient=function(){
-  const id=prompt("Enter Patient ID");
-  if(!id) return;
 
-  db.ref("patients/"+id).set({
-    name:"New Patient",
-    riskScore:0,
-    createdAt:Date.now()
-  });
+
+window.openPatientForm=function(){
+
+patientForm.classList.remove("hidden")
+
+pid.value=""
+pname.value=""
+page.value=""
+pcondition.value=""
+psafeRadius.value=""
+
 }
+
+
+
+window.closeForm=function(){
+
+patientForm.classList.add("hidden")
+
+}
+
+
+
+window.editPatient=function(id){
+
+db.ref("patients/"+id).once("value")
+
+.then(snap=>{
+
+const p=snap.val()
+
+patientForm.classList.remove("hidden")
+
+pid.value=id
+pname.value=p.name
+page.value=p.age
+pcondition.value=p.condition
+psafeRadius.value=p.safeRadius
+
+})
+
+}
+
+
+
+window.savePatient=function(){
+
+const id=pid.value
+
+db.ref("patients/"+id).update({
+
+name:pname.value,
+
+age:page.value,
+
+condition:pcondition.value,
+
+safeRadius:Number(psafeRadius.value),
+
+lastUpdated:Date.now()
+
+})
+
+closeForm()
+
+}
+
+
 
 window.deletePatient=function(id){
-  if(confirm("Delete?")){
-    db.ref("patients/"+id).remove();
-  }
+
+if(confirm("Delete patient?"))
+
+db.ref("patients/"+id).remove()
+
 }
 
-/* ALERTS */
-let alertCache={};
+
+
+window.setSafeCenter=function(id){
+
+db.ref("patients/"+id+"/currentLocation")
+
+.once("value")
+
+.then(snap=>{
+
+const loc=snap.val()
+
+if(!loc){
+
+alert("No location from patient phone")
+
+return
+
+}
+
+
+
+db.ref("patients/"+id+"/safeCenter")
+
+.set({
+
+lat:loc.latitude,
+
+lng:loc.longitude
+
+})
+
+
+
+alert("Safe center updated")
+
+})
+
+}
+
+
+
+/* ALERT SYSTEM */
+
+let alertCache={}
+
+
 
 function listenAlerts(){
-  db.ref("alerts").on("value",snap=>{
-    alertCache={};
-    snap.forEach(child=>{
-      alertCache[child.key]=child.val();
-    });
-    renderAlerts();
-  });
+
+db.ref("alerts").on("value",snap=>{
+
+alertCache={}
+
+snap.forEach(child=>{
+
+alertCache[child.key]=child.val()
+
+})
+
+renderAlerts()
+
+})
+
 }
+
+
 
 window.renderAlerts=function(){
-  alerts.innerHTML="";
-  const filter=patientFilter.value;
 
-  Object.entries(alertCache).forEach(([id,a])=>{
-    if(filter!=="all" && a.patientId!==filter) return;
+alerts.innerHTML=""
 
-    alerts.innerHTML+=`
-      <div class="card alert-card">
-        <h3>${a.patientId}</h3>
-        <p>Risk: ${(a.riskScore*100).toFixed(1)}%</p>
-        <button onclick="resolveAlert('${id}','${a.patientId}','correct_alert')">Correct</button>
-        <button onclick="resolveAlert('${id}','${a.patientId}','false_alarm')">False</button>
-      </div>
-    `;
+const filter=patientFilter.value
 
-    if(a.active){
-      document.getElementById("alertSound").play();
-    }
-  });
+
+
+Object.entries(alertCache)
+
+.forEach(([id,a])=>{
+
+if(filter!=="all" && a.patientId!==filter) return
+
+
+
+alerts.innerHTML+=`
+
+<div class="card alert-card">
+
+<h3>${a.patientId}</h3>
+
+<p>Risk: ${(a.riskScore*100).toFixed(1)}%</p>
+
+<button onclick="resolveAlert('${id}','${a.patientId}','correct_alert')">Correct</button>
+
+<button onclick="resolveAlert('${id}','${a.patientId}','false_alarm')">False</button>
+
+</div>
+
+`
+
+
+
+if(a.active)
+
+document.getElementById("alertSound").play()
+
+})
+
 }
+
+
 
 window.resolveAlert=function(alertId,patientId,result){
-  db.ref("alerts/"+alertId).update({active:false,resolution:result});
-  db.ref("patients/"+patientId+"/lastFeedback").set(result);
-}
+
+db.ref("alerts/"+alertId)
+
+.update({
+
+active:false,
+
+resolution:result
+
+})
+
+
+
+db.ref("patients/"+patientId+"/lastFeedback")
+
+.set(result)
 
 }
+
+
+
+}
+
 </script>
+
 </body>
 </html>
