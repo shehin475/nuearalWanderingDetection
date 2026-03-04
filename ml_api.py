@@ -322,9 +322,8 @@ def predict():
     if distance > safe_radius:
        status = "outside"
 
-    requests.patch(
-      f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-      json={
+    # Update main patient data including distance
+    payload = {
         # movement info
         "currentLocation": {
             "lat": lat,
@@ -349,7 +348,21 @@ def predict():
         "zoneHeatmap": zone_map,
         "riskHistory": history
     }
-    )
+    
+    try:
+        resp = requests.patch(
+            f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
+            json=payload,
+            timeout=5
+        )
+        
+        if resp.status_code not in [200, 204]:
+            logger.error(f"Firebase update failed: {resp.status_code} - {resp.text}")
+        else:
+            logger.info(f"Distance updated: {distance}m for patient {patient_id}")
+            
+    except Exception as e:
+        logger.error(f"Firebase PATCH error: {e}")
 
     if level == "alert" and patient.get("fcmToken"):
         send_push(
@@ -358,31 +371,26 @@ def predict():
             f"High risk detected ({risk})",
             patient_id
         )
-    # 🔔 STORE ALERT FOR CARETAKER (NEW)
-    if level == "alert" and should_send_alert(
-     d.get("prevRiskLevel"), level
-     ):
-      requests.post(
-        f"{FIREBASE_DB_URL}/alerts.json",
-        json={
-            "patientId": patient_id,
-            "riskScore": risk,
-            "riskLevel": level,
-            "timestamp": int(time.time() * 1000),
-
-            # 🔥 ALERT OPTIONS
-            "active": True,
-            "acknowledged": False,
-            "snoozedUntil": None
-        }
-    )
-      
-      requests.patch(
-        f"{FIREBASE_DB_URL}/patients/{patient_id}.json",
-        json={
-            "riskScore": risk
-        }
-    )
+    
+    # Store alert for caretaker dashboard
+    if level == "alert" and should_send_alert(d.get("prevRiskLevel"), level):
+        try:
+            requests.post(
+                f"{FIREBASE_DB_URL}/alerts.json",
+                json={
+                    "patientId": patient_id,
+                    "riskScore": risk,
+                    "riskLevel": level,
+                    "timestamp": int(time.time() * 1000),
+                    "active": True,
+                    "acknowledged": False,
+                    "snoozedUntil": None
+                },
+                timeout=5
+            )
+            logger.info(f"Alert stored for patient {patient_id}")
+        except Exception as e:
+            logger.error(f"Failed to store alert: {e}")
 
 
     logger.info(
