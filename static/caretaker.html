@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Caretaker Dashboard</title>
+<title>Neural Wandering Detection - Caretaker Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -10,55 +10,616 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-
-body{
-font-family:Arial;
-background:#0f172a;
-color:white;
-padding:20px;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.card{
-background:#020617;
-padding:16px;
-border-radius:10px;
-margin-bottom:16px;
+:root {
+  --primary: #0f172a;
+  --secondary: #1e293b;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --card-bg: #020617;
+  --border-color: #334155;
 }
 
-button{
-padding:6px 10px;
-border:none;
-border-radius:6px;
-cursor:pointer;
+html, body {
+  height: 100%;
+  width: 100%;
 }
 
-input,select{
-width:100%;
-padding:8px;
-margin-bottom:8px;
-border-radius:6px;
-border:none;
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  color: #e2e8f0;
+  overflow-x: hidden;
+  min-height: 100vh;
 }
 
-.hidden{display:none;}
-
-.tabs{
-display:flex;
-gap:10px;
-margin-bottom:20px;
+/* ANIMATIONS */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.tab-btn{
-background:#1e293b;
-color:white;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.tab-btn.active{
-background:#38bdf8;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
-.alert-card{
-border-left:6px solid red;
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.6); }
+}
+
+/* HEADER & LAYOUT */
+.header {
+  background: rgba(2, 6, 23, 0.8);
+  padding: 20px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border-color);
+  backdrop-filter: blur(10px);
+  animation: slideIn 0.6s ease-out;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: bold;
+  background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: float 3s ease-in-out infinite;
+}
+
+.logout-btn {
+  background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* LOGIN BOX */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+}
+
+.login-box {
+  background: rgba(2, 6, 23, 0.9);
+  padding: 50px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 400px;
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.8s ease-out;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.login-box h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 32px;
+  background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-box .input-group {
+  margin-bottom: 20px;
+}
+
+.login-box label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: rgba(30, 41, 59, 0.5);
+  color: white;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.login-box input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.1);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+}
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(56, 189, 248, 0.4);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+/* CARDS */
+.card {
+  background: rgba(2, 6, 23, 0.8);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.2);
+  transform: translateY(-5px);
+}
+
+.patient-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.patient-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), #06b6d4);
+}
+
+.patient-card h3 {
+  margin-bottom: 15px;
+  font-size: 20px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.status-badge.safe {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.status-badge.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning);
+}
+
+.status-badge.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.patient-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(56, 189, 248, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+
+.info-label {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.info-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.risk-level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.risk-bar {
+  height: 8px;
+  background: rgba(56, 189, 248, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 1;
+  max-width: 150px;
+}
+
+.risk-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+/* ALERTS */
+.alert-card {
+  border-left: 5px solid var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  animation: glow 2s ease-in-out infinite;
+}
+
+.alert-card h3 {
+  color: var(--danger);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--danger);
+  color: white;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* BUTTONS */
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+  color: white;
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+  color: white;
+}
+
+.btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+}
+
+.btn-secondary {
+  background: var(--secondary);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+  transform: translateY(-2px);
+}
+
+.btn-edit {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-edit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(139, 92, 246, 0.3);
+}
+
+.btn-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+/* INPUTS & FORMS */
+input, select {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: rgba(30, 41, 59, 0.5);
+  color: white;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.1);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+}
+
+input::placeholder {
+  color: #64748b;
+}
+
+.search-box {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.search-box input {
+  padding-left: 40px;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.filter-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .filter-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 25px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  background: transparent;
+  color: #94a3b8;
+  padding: 12px 20px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--accent);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-content {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* HIDDEN */
+.hidden {
+  display: none !important;
+}
+
+/* PATIENT FORM */
+.patient-form {
+  background: rgba(2, 6, 23, 0.95);
+  padding: 30px;
+  border-radius: 15px;
+  border: 1px solid var(--border-color);
+  max-width: 500px;
+}
+
+.patient-form h3 {
+  margin-bottom: 25px;
+  font-size: 24px;
+  color: var(--accent);
+}
+
+.patient-form button {
+  width: 48%;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+/* GRID LAYOUTS */
+.patients-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .patients-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.7;
+}
+
+.empty-state-text {
+  font-size: 18px;
+  color: #94a3b8;
+}
+
+/* MODAL OVERLAY */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal-content {
+  animation: slideIn 0.4s ease-out;
 }
 
 </style>
@@ -66,438 +627,554 @@ border-left:6px solid red;
 
 <body>
 
-<h1>🧑‍⚕️ Caretaker Dashboard</h1>
+<!-- LOGIN SCREEN -->
 
-<!-- LOGIN -->
-
-<div id="loginBox" class="card">
-
-<h3>Login</h3>
-
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
-
-<button onclick="login()">Login</button>
-
+<div id="loginBox" class="login-container">
+  <div class="login-box">
+    <h1>🧠 Neural Wandering Detection</h1>
+    <div class="input-group">
+      <label for="email">Email Address</label>
+      <input id="email" type="email" placeholder="Enter your email">
+    </div>
+    <div class="input-group">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="Enter your password">
+    </div>
+    <button class="login-btn" onclick="login()">Sign In</button>
+  </div>
 </div>
-
 
 <!-- DASHBOARD -->
 
 <div id="dashboard" class="hidden">
+  
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">🧑‍⚕️ Caretaker Dashboard</div>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+  </div>
 
-<button onclick="logout()">Logout</button>
+  <!-- MAIN CONTAINER -->
+  <div class="container">
+    
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('patientsTab', this)">👥 Patients</button>
+      <button class="tab-btn" onclick="switchTab('alertsTab', this)">⚠️ Alerts</button>
+    </div>
 
-<hr>
+    <!-- PATIENTS TAB -->
+    <div id="patientsTab" class="tab-content">
+      
+      <!-- ADD PATIENT BUTTON -->
+      <div style="margin-bottom: 25px;">
+        <button class="btn-primary" onclick="openPatientForm()">➕ Add New Patient</button>
+      </div>
 
-<div class="tabs">
+      <!-- SEARCH & FILTERS -->
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input 
+          id="patientSearch" 
+          type="text" 
+          placeholder="Search by name, ID, or condition..." 
+          oninput="filterPatients()"
+        >
+      </div>
 
-<button class="tab-btn active" onclick="switchTab('patientsTab',this)">Patients</button>
+      <div class="filter-container">
+        <div>
+          <label style="display: block; margin-bottom: 8px; color: var(--accent); font-weight: 600;">Filter by Status</label>
+          <select id="statusFilter" onchange="filterPatients()">
+            <option value="">All Status</option>
+            <option value="Safe">Safe</option>
+            <option value="Warning">Warning</option>
+            <option value="Danger">Danger</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 8px; color: var(--accent); font-weight: 600;">Filter by Risk Level</label>
+          <select id="riskFilter" onchange="filterPatients()">
+            <option value="">All Risk Levels</option>
+            <option value="Low">Low Risk</option>
+            <option value="Medium">Medium Risk</option>
+            <option value="High">High Risk</option>
+          </select>
+        </div>
+      </div>
 
-<button class="tab-btn" onclick="switchTab('alertsTab',this)">Alerts</button>
+      <!-- PATIENTS GRID -->
+      <div id="patients" class="patients-grid"></div>
+
+    </div>
+
+    <!-- ALERTS TAB -->
+    <div id="alertsTab" class="tab-content hidden">
+      
+      <!-- ALERT FILTERS -->
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input 
+          id="alertSearch" 
+          type="text" 
+          placeholder="Search alerts by patient ID..." 
+          oninput="renderAlerts()"
+        >
+      </div>
+
+      <div class="filter-container">
+        <div>
+          <label style="display: block; margin-bottom: 8px; color: var(--accent); font-weight: 600;">Filter by Patient</label>
+          <select id="patientFilter" onchange="renderAlerts()">
+            <option value="all">All Patients</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 8px; color: var(--accent); font-weight: 600;">Filter by Risk</label>
+          <select id="alertRiskFilter" onchange="renderAlerts()">
+            <option value="">All Risk Levels</option>
+            <option value="low">Low Risk</option>
+            <option value="medium">Medium Risk</option>
+            <option value="high">High Risk</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ALERTS LIST -->
+      <div id="alerts" class="alerts-list"></div>
+
+    </div>
+
+  </div>
 
 </div>
 
+<!-- PATIENT FORM MODAL -->
+<div id="patientFormModal" class="modal-overlay hidden">
+  <div class="modal-content card patient-form">
+    <h3>👤 Add / Edit Patient</h3>
+    
+    <div class="form-group">
+      <label for="pid">Patient ID</label>
+      <input id="pid" type="text" placeholder="e.g., P001">
+    </div>
+    
+    <div class="form-group">
+      <label for="pname">Full Name</label>
+      <input id="pname" type="text" placeholder="Patient's full name">
+    </div>
+    
+    <div class="form-group">
+      <label for="page">Age</label>
+      <input id="page" type="number" placeholder="Age in years">
+    </div>
+    
+    <div class="form-group">
+      <label for="pcondition">Medical Condition</label>
+      <input id="pcondition" type="text" placeholder="e.g., Dementia, Alzheimer's">
+    </div>
+    
+    <div class="form-group">
+      <label for="psafeRadius">Safe Radius (meters)</label>
+      <input id="psafeRadius" type="number" placeholder="e.g., 500">
+    </div>
 
-<!-- PATIENTS TAB -->
-
-<div id="patientsTab">
-
-<button onclick="openPatientForm()">➕ Add Patient</button>
-
-<div id="patients"></div>
-
+    <div class="form-buttons">
+      <button class="btn-primary" style="width: 48%;" onclick="savePatient()">💾 Save</button>
+      <button class="btn-secondary" style="width: 48%;" onclick="closeForm()">❌ Cancel</button>
+    </div>
+  </div>
 </div>
 
-
-<!-- ALERT TAB -->
-
-<div id="alertsTab" class="hidden">
-
-<select id="patientFilter" onchange="renderAlerts()">
-
-<option value="all">All Patients</option>
-
-</select>
-
-<div id="alerts"></div>
-
-</div>
-
-
-</div>
-
-
-<!-- PATIENT FORM -->
-
-<div id="patientForm" class="card hidden">
-
-<h3>Add / Edit Patient</h3>
-
-<input id="pid" placeholder="Patient ID">
-
-<input id="pname" placeholder="Name">
-
-<input id="page" placeholder="Age">
-
-<input id="pcondition" placeholder="Condition">
-
-<input id="psafeRadius" placeholder="Safe Radius (meters)">
-
-<button onclick="savePatient()">Save Patient</button>
-
-<button onclick="closeForm()">Cancel</button>
-
-</div>
-
-
-<audio id="alertSound"
-src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg">
-</audio>
-
+<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 
 <script>
 
 /* Load firebase config */
 
 fetch("/firebase-config")
-
-.then(res=>res.json())
-
-.then(config=>{
-firebase.initializeApp(config)
-initApp()
-})
-
-
-
-function initApp(){
-
-const auth=firebase.auth()
-const db=firebase.database()
-
-
-
-auth.onAuthStateChanged(user=>{
-
-if(user){
-
-loginBox.classList.add("hidden")
-dashboard.classList.remove("hidden")
-
-loadPatients()
-listenAlerts()
-
-}
-
-else{
-
-loginBox.classList.remove("hidden")
-dashboard.classList.add("hidden")
-
-}
-
-})
-
-
-
-window.login=function(){
-
-auth.signInWithEmailAndPassword(
-
-email.value,
-password.value
-
-).catch(e=>alert(e.message))
-
-}
-
-
-
-window.logout=function(){
-
-auth.signOut()
-
-}
-
-
-
-window.switchTab=function(tab,btn){
-
-patientsTab.classList.add("hidden")
-alertsTab.classList.add("hidden")
-
-document.getElementById(tab).classList.remove("hidden")
-
-document.querySelectorAll(".tab-btn")
-
-.forEach(b=>b.classList.remove("active"))
-
-btn.classList.add("active")
-
-}
-
-
-
-function loadPatients(){
-
-db.ref("patients").on("value",snap=>{
-
-patients.innerHTML=""
-
-patientFilter.innerHTML='<option value="all">All Patients</option>'
-
-
-
-snap.forEach(child=>{
-
-const id=child.key
-const p=child.val()
-
-patientFilter.innerHTML+=`<option value="${id}">${id}</option>`
-
-
-
-patients.innerHTML+=`
-
-<div class="card">
-
-<h3>${p.name} (${id})</h3>
-
-<p>Age: ${p.age}</p>
-
-<p>Condition: ${p.condition}</p>
-
-<p>Status: ${p.status}</p>
-
-<p>Risk Level: ${p.riskLevel}</p>
-
-<p>Risk Score: ${p.riskScore}</p>
-
-<p>Speed: ${p.speed}</p>
-
-<p>Distance: ${p.distance}</p>
-
-<p>Safe Radius: ${p.safeRadius}</p>
-
-<p>Last Feedback: ${p.lastFeedback}</p>
-
-<p>Last Updated: ${new Date(p.lastUpdated).toLocaleString()}</p>
-
-<button onclick="editPatient('${id}')">Edit</button>
-
-<button onclick="setSafeCenter('${id}')">Set Safe Center</button>
-
-<button onclick="deletePatient('${id}')">Delete</button>
-
-</div>
-
-`
-
-})
-
-})
-
-}
-
-
-
-window.openPatientForm=function(){
-
-patientForm.classList.remove("hidden")
-
-pid.value=""
-pname.value=""
-page.value=""
-pcondition.value=""
-psafeRadius.value=""
-
-}
-
-
-
-window.closeForm=function(){
-
-patientForm.classList.add("hidden")
-
-}
-
-
-
-window.editPatient=function(id){
-
-db.ref("patients/"+id).once("value")
-
-.then(snap=>{
-
-const p=snap.val()
-
-patientForm.classList.remove("hidden")
-
-pid.value=id
-pname.value=p.name
-page.value=p.age
-pcondition.value=p.condition
-psafeRadius.value=p.safeRadius
-
-})
-
-}
-
-
-
-window.savePatient=function(){
-
-const id=pid.value
-
-db.ref("patients/"+id).update({
-
-name:pname.value,
-
-age:page.value,
-
-condition:pcondition.value,
-
-safeRadius:Number(psafeRadius.value),
-
-lastUpdated:Date.now()
-
-})
-
-closeForm()
-
-}
-
-
-
-window.deletePatient=function(id){
-
-if(confirm("Delete patient?"))
-
-db.ref("patients/"+id).remove()
-
-}
-
-window.setSafeCenter = function(id){
-
-  db.ref("patients/"+id+"/currentLocation")
-  .once("value")
-  .then(snap=>{
-
-    const loc = snap.val()
-
-    if(!loc){
-      alert("❌ No location received from patient phone")
-      return
-    }
-
-    const lat = loc.lat
-    const lng = loc.lon
-
-    const confirmMsg =
-    "Set Safe Center for patient: " + id + "\n\n" +
-    "Latitude: " + lat + "\n" +
-    "Longitude: " + lng + "\n\n" +
-    "Do you want to confirm?"
-
-    if(confirm(confirmMsg)){
-
-      db.ref("patients/"+id+"/safeCenter").set({
-        lat: lat,
-        lon: lng
-      })
-
-      alert(
-        "✅ Safe Center Updated\n\n" +
-        "Latitude: " + lat +
-        "\nLongitude: " + lng
-      )
-
-    }
-
+  .then(res => res.json())
+  .then(config => {
+    firebase.initializeApp(config);
+    initApp();
   })
-
-}
-
-
-/* ALERT SYSTEM */
-
-let alertCache={}
+  .catch(err => console.error("Firebase config error:", err));
 
 
 
-function listenAlerts(){
+function initApp() {
 
-db.ref("alerts").on("value",snap=>{
+  const auth = firebase.auth();
+  const db = firebase.database();
 
-alertCache={}
+  auth.onAuthStateChanged(user => {
 
-snap.forEach(child=>{
+    if (user) {
+      
+      loginBox.classList.add("hidden");
+      dashboard.classList.remove("hidden");
 
-alertCache[child.key]=child.val()
+      loadPatients();
+      listenAlerts();
 
-})
+    } else {
 
-renderAlerts()
+      loginBox.classList.remove("hidden");
+      dashboard.classList.add("hidden");
 
-})
+    }
 
-}
+  });
 
+  window.login = function() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
+    if (!email || !password) {
+      alert("❌ Please enter both email and password");
+      return;
+    }
 
-window.renderAlerts=function(){
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(e => alert("❌ " + e.message));
+  };
 
-alerts.innerHTML=""
+  window.logout = function() {
+    auth.signOut();
+  };
 
-const filter=patientFilter.value
+  window.switchTab = function(tab, btn) {
+    document.getElementById("patientsTab").classList.add("hidden");
+    document.getElementById("alertsTab").classList.add("hidden");
+    document.getElementById(tab).classList.remove("hidden");
 
+    document.querySelectorAll(".tab-btn")
+      .forEach(b => b.classList.remove("active"));
 
+    btn.classList.add("active");
+  };
 
-Object.entries(alertCache)
+  // LOAD PATIENTS
+  function loadPatients() {
+    db.ref("patients").on("value", snap => {
 
-.forEach(([id,a])=>{
+      const patients = {};
 
-if(filter!=="all" && a.patientId!==filter) return
+      snap.forEach(child => {
+        patients[child.key] = child.val();
+      });
 
+      window.allPatients = patients;
+      patientFilter.innerHTML = '<option value="all">All Patients</option>';
 
+      Object.keys(patients).forEach(id => {
+        const p = patients[id];
+        patientFilter.innerHTML += `<option value="${id}">${id} - ${p.name}</option>`;
+      });
 
-alerts.innerHTML+=`
+      filterPatients();
 
-<div class="card alert-card">
+    });
+  }
 
-<h3>${a.patientId}</h3>
+  // FILTER PATIENTS
+  window.filterPatients = function() {
+    const searchTerm = document.getElementById("patientSearch").value.toLowerCase();
+    const statusFilter = document.getElementById("statusFilter").value;
+    const riskFilter = document.getElementById("riskFilter").value;
 
-<p>Risk: ${(a.riskScore*100).toFixed(1)}%</p>
+    const patients = window.allPatients || {};
+    const patientsDiv = document.getElementById("patients");
 
-<button onclick="resolveAlert('${id}','${a.patientId}','correct_alert')">Correct</button>
+    let html = '';
 
-<button onclick="resolveAlert('${id}','${a.patientId}','false_alarm')">False</button>
+    Object.entries(patients).forEach(([id, p]) => {
 
-</div>
+      const matchesSearch = !searchTerm || 
+        id.toLowerCase().includes(searchTerm) ||
+        p.name.toLowerCase().includes(searchTerm) ||
+        (p.condition && p.condition.toLowerCase().includes(searchTerm));
 
-`
+      const matchesStatus = !statusFilter || p.status === statusFilter;
+      const matchesRisk = !riskFilter || p.riskLevel === riskFilter;
 
+      if (!matchesSearch || !matchesStatus || !matchesRisk) return;
 
+      const riskScore = p.riskScore || 0;
+      const riskPercent = Math.min(100, Math.round(riskScore * 100));
+      const statusBadgeClass = p.status === 'Safe' ? 'safe' : p.status === 'Warning' ? 'warning' : 'danger';
 
-if(a.active)
+      html += `
+        <div class="card patient-card">
+          <div style="display: flex; align-items: center; margin-bottom: 15px; gap: 10px;">
+            <h3 style="margin: 0; flex: 1;">${p.name}</h3>
+            <span class="status-badge ${statusBadgeClass}">${p.status || 'Unknown'}</span>
+          </div>
 
-document.getElementById("alertSound").play()
+          <div class="patient-info">
+            <div class="info-item">
+              <span class="info-label">ID</span>
+              <span class="info-value">${id}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Age</span>
+              <span class="info-value">${p.age || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Condition</span>
+              <span class="info-value">${p.condition || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Safe Radius</span>
+              <span class="info-value">${p.safeRadius || 0}m</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Current Speed</span>
+              <span class="info-value">${(p.speed || 0).toFixed(2)} m/s</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Distance From Safe Zone</span>
+              <span class="info-value">${(p.distance || 0).toFixed(1)}m</span>
+            </div>
+          </div>
 
-})
+          <div style="margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: #94a3b8;">Risk Level</span>
+              <span class="info-value">${riskPercent}%</span>
+            </div>
+            <div class="risk-bar">
+              <div class="risk-fill" style="width: ${riskPercent}%"></div>
+            </div>
+          </div>
 
-}
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 15px;">
+            Last Updated: ${new Date(p.lastUpdated || 0).toLocaleString()}
+          </div>
 
+          <div class="btn-group">
+            <button class="btn-edit" onclick="editPatient('${id}')">✏️ Edit</button>
+            <button class="btn-edit" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);" onclick="setSafeCenter('${id}')">📍 Set Safe Center</button>
+            <button class="btn-edit" style="background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);" onclick="deletePatient('${id}')">🗑️ Delete</button>
+          </div>
+        </div>
+      `;
 
-window.resolveAlert = function(alertId, patientId, result) {
+    });
 
-  // Save feedback to patient record
-  db.ref("patients/" + patientId + "/lastFeedback").set(result);
+    if (html === '') {
+      html = `
+        <div class="empty-state" style="grid-column: 1/-1;">
+          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-text">No patients found</div>
+        </div>
+      `;
+    }
 
-  // Delete alert from database
-  db.ref("alerts/" + alertId).remove();
+    patientsDiv.innerHTML = html;
+  };
 
-}
+  // OPEN PATIENT FORM
+  window.openPatientForm = function() {
+    document.getElementById("patientFormModal").classList.remove("hidden");
+    document.getElementById("pid").value = "";
+    document.getElementById("pname").value = "";
+    document.getElementById("page").value = "";
+    document.getElementById("pcondition").value = "";
+    document.getElementById("psafeRadius").value = "";
+    document.getElementById("pid").focus();
+  };
+
+  // CLOSE FORM
+  window.closeForm = function() {
+    document.getElementById("patientFormModal").classList.add("hidden");
+  };
+
+  // EDIT PATIENT
+  window.editPatient = function(id) {
+    db.ref("patients/" + id).once("value")
+      .then(snap => {
+        const p = snap.val();
+        document.getElementById("patientFormModal").classList.remove("hidden");
+        document.getElementById("pid").value = id;
+        document.getElementById("pname").value = p.name;
+        document.getElementById("page").value = p.age;
+        document.getElementById("pcondition").value = p.condition;
+        document.getElementById("psafeRadius").value = p.safeRadius;
+      });
+  };
+
+  // SAVE PATIENT
+  window.savePatient = function() {
+    const id = document.getElementById("pid").value;
+    const name = document.getElementById("pname").value;
+    const age = document.getElementById("page").value;
+    const condition = document.getElementById("pcondition").value;
+    const safeRadius = document.getElementById("psafeRadius").value;
+
+    if (!id || !name) {
+      alert("❌ Patient ID and Name are required");
+      return;
+    }
+
+    db.ref("patients/" + id).update({
+      name: name,
+      age: age,
+      condition: condition,
+      safeRadius: Number(safeRadius),
+      lastUpdated: Date.now()
+    });
+
+    alert("✅ Patient saved successfully");
+    closeForm();
+  };
+
+  // DELETE PATIENT
+  window.deletePatient = function(id) {
+    if (confirm("⚠️ Are you sure you want to delete patient " + id + "?")) {
+      db.ref("patients/" + id).remove();
+      alert("✅ Patient deleted");
+    }
+  };
+
+  // SET SAFE CENTER
+  window.setSafeCenter = function(id) {
+    db.ref("patients/" + id + "/currentLocation")
+      .once("value")
+      .then(snap => {
+        const loc = snap.val();
+
+        if (!loc) {
+          alert("❌ No location received from patient phone");
+          return;
+        }
+
+        const lat = loc.lat;
+        const lng = loc.lon;
+
+        const confirmMsg =
+          "Set Safe Center for patient: " + id + "\n\n" +
+          "Latitude: " + lat.toFixed(6) + "\n" +
+          "Longitude: " + lng.toFixed(6) + "\n\n" +
+          "Do you want to confirm?";
+
+        if (confirm(confirmMsg)) {
+          db.ref("patients/" + id + "/safeCenter").set({
+            lat: lat,
+            lon: lng
+          });
+
+          alert(
+            "✅ Safe Center Updated\n\n" +
+            "Latitude: " + lat.toFixed(6) +
+            "\nLongitude: " + lng.toFixed(6)
+          );
+        }
+      })
+      .catch(err => alert("❌ Error: " + err.message));
+  };
+
+  /* ALERT SYSTEM */
+  let alertCache = {};
+
+  function listenAlerts() {
+    db.ref("alerts").on("value", snap => {
+      alertCache = {};
+
+      snap.forEach(child => {
+        alertCache[child.key] = child.val();
+      });
+
+      renderAlerts();
+    });
+  }
+
+  window.renderAlerts = function() {
+    const alertsDiv = document.getElementById("alerts");
+    const filter = document.getElementById("patientFilter").value;
+    const searchTerm = document.getElementById("alertSearch").value.toLowerCase();
+    const riskFilter = document.getElementById("alertRiskFilter").value;
+
+    let html = '';
+
+    Object.entries(alertCache).forEach(([id, a]) => {
+
+      if (filter !== "all" && a.patientId !== filter) return;
+
+      const matchesSearch = !searchTerm || a.patientId.toLowerCase().includes(searchTerm);
+      
+      const riskScore = a.riskScore || 0;
+      let riskLevel = 'low';
+      if (riskScore > 0.7) riskLevel = 'high';
+      else if (riskScore > 0.4) riskLevel = 'medium';
+
+      const matchesRisk = !riskFilter || riskLevel === riskFilter;
+
+      if (!matchesSearch || !matchesRisk) return;
+
+      const riskPercent = Math.round(riskScore * 100);
+
+      html += `
+        <div class="card alert-card">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; flex: 1;">Patient: ${a.patientId}</h3>
+            <span class="alert-badge">🚨 ALERT</span>
+          </div>
+
+          <div class="patient-info">
+            <div class="info-item">
+              <span class="info-label">Risk Score</span>
+              <span class="info-value">${riskPercent}%</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Risk Level</span>
+              <span class="info-value">${riskLevel.toUpperCase()}</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <div class="risk-bar">
+              <div class="risk-fill" style="width: ${riskPercent}%"></div>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn-success" onclick="resolveAlert('${id}', '${a.patientId}', 'correct_alert')">✅ Correct Alert</button>
+            <button class="btn-secondary" onclick="resolveAlert('${id}', '${a.patientId}', 'false_alarm')">❌ False Alarm</button>
+          </div>
+        </div>
+      `;
+
+      if (a.active) {
+        document.getElementById("alertSound").play().catch(err => console.log("Audio play prevented"));
+      }
+
+    });
+
+    if (html === '') {
+      html = `
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          <div class="empty-state-text">No alerts at the moment - All patients are safe!</div>
+        </div>
+      `;
+    }
+
+    alertsDiv.innerHTML = html;
+  };
+
+  window.resolveAlert = function(alertId, patientId, result) {
+    db.ref("patients/" + patientId + "/lastFeedback").set(result);
+    db.ref("alerts/" + alertId).remove();
+    alert("✅ Alert resolved: " + result);
+  };
+
+  // Close modal when clicking outside
+  document.getElementById("patientFormModal").addEventListener("click", function(e) {
+    if (e.target === this) {
+      closeForm();
+    }
+  });
 
 }
 
