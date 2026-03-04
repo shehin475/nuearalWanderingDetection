@@ -378,8 +378,6 @@ db.ref("patients/"+id).remove()
 
 }
 
-
-
 window.setSafeCenter = function(id){
 
   db.ref("patients/"+id+"/currentLocation")
@@ -393,8 +391,8 @@ window.setSafeCenter = function(id){
       return
     }
 
-    const lat = loc.latitude
-    const lng = loc.longitude
+    const lat = loc.lat
+    const lng = loc.lon
 
     const confirmMsg =
     "Set Safe Center for patient: " + id + "\n\n" +
@@ -406,7 +404,7 @@ window.setSafeCenter = function(id){
 
       db.ref("patients/"+id+"/safeCenter").set({
         lat: lat,
-        lng: lng
+        lon: lng
       })
 
       alert(
